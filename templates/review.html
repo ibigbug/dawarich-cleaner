@@ -202,7 +202,7 @@
             <tbody>
                 {% if flagged_points %}
                     {% for point in flagged_points %}
-                        {% set details = point.detection_details_parsed %}
+                        {% set details = point.detection_details %}
                         <tr>
                             <td>
                                 <input type="checkbox"
