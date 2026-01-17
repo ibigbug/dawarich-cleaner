@@ -82,15 +82,20 @@ class AutoScanScheduler:
         last_completed = await self.db.get_last_completed_scan()
 
         if last_completed:
-            # Parse the end_date string (format: "YYYY-MM-DD") and add 5 min overlap
-            end_date_str = last_completed["end_date"]
-            last_scan_date = datetime.strptime(end_date_str, "%Y-%m-%d")
-            start_date = last_scan_date - timedelta(minutes=5)
+            # Use the scan completion time as the new start (with 5 min overlap)
+            completed_at = last_completed.get("completed_at")
+            if completed_at:
+                start_date = datetime.fromtimestamp(completed_at) - timedelta(minutes=5)
+            else:
+                # Fallback: if no completion timestamp, use the end_date at 23:59:59
+                end_date_str = last_completed["end_date"]
+                last_scan_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+                start_date = last_scan_date.replace(hour=23, minute=59, second=59)
             logger.info(f"📅 Auto-scan from last scan: {start_date.strftime('%Y-%m-%d %H:%M')}")
         else:
-            # First scan - scan last 24 hours
-            start_date = datetime.now() - timedelta(hours=24)
-            logger.info("📅 First auto-scan: scanning last 24 hours")
+            # First scan - scan last 15 minutes (slightly more than the 10 min interval)
+            start_date = datetime.now() - timedelta(minutes=15)
+            logger.info("📅 First auto-scan: scanning last 15 minutes")
 
         end_date = datetime.now()
 

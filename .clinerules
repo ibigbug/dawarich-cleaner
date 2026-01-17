@@ -1,0 +1,174 @@
+# Cline AI Assistant Rules
+
+## Project: Dawarich Cleaner
+GPS outlier detection and management for Dawarich location tracking data.
+
+## Quick Reference
+
+### Run Commands
+```bash
+# Tests
+uv run pytest
+uv run pytest -v tests/test_scheduler.py
+
+# Development server
+uv run uvicorn app.main:app --reload
+
+# Coverage
+uv run pytest --cov=app --cov-report=html
+```
+
+### Project Structure
+- `app/routes/` - HTTP endpoints
+- `app/services/` - Business logic
+- `app/database.py` - Database operations (all async)
+- `tests/` - Test files
+- `templates/` - Jinja2 HTML templates
+
+## Critical Implementation Rules
+
+### 1. Scheduler Time Handling ⚠️
+**ALWAYS use `completed_at` timestamp, NEVER use `end_date` string**
+
+```python
+# ✅ CORRECT
+completed_at = last_completed.get("completed_at")
+if completed_at:
+    start_date = datetime.fromtimestamp(completed_at) - timedelta(minutes=5)
+
+# ❌ WRONG - Causes repeated scanning of same dates
+end_date_str = last_completed["end_date"]  # "2026-01-16"
+start_date = datetime.strptime(end_date_str, "%Y-%m-%d")  # Midnight!
+```
+
+**Why**: `end_date` is "YYYY-MM-DD" which parses to midnight, causing date regression.
+
+### 2. Async Patterns
+All database and HTTP operations must be async:
+
+```python
+# Database access
+async def handler(request: Request):
+    db: Database = request.app.state.db
+    result = await db.method()
+
+# HTTP client
+async with httpx.AsyncClient() as client:
+    response = await client.get(url)
+```
+
+### 3. Error Handling
+Always update scan status on failure:
+
+```python
+try:
+    # ... scan logic
+    await db.update_scan_history(scan_id, status="completed", ...)
+except Exception as e:
+    logger.error(f"Error: {e}", exc_info=True)
+    await db.update_scan_history(scan_id, status="failed", error_message=str(e))
+    raise
+```
+
+### 4. Testing Requirements
+- Add tests for all new features
+- Mock external services (DawarichService)
+- Use AsyncMock for async operations
+- Test time-related logic carefully
+
+```python
+mock_db = MagicMock()
+mock_db.get_last_scan = AsyncMock(return_value=None)
+```
+
+## Code Style
+
+### Naming
+- Functions/methods: `snake_case`
+- Classes: `PascalCase`
+- Constants: `UPPER_SNAKE_CASE`
+- Be descriptive: `points_scanned` not `pts`
+
+### Logging
+Use emojis for visual clarity:
+```python
+logger.info("📅 Auto-scan starting")
+logger.error("❌ Scan failed")
+logger.warning("⚠️ Stuck scan detected")
+logger.info("✅ Scan completed")
+logger.info("🔍 Analyzing points")
+logger.info("🚩 Found outliers")
+```
+
+### Type Hints
+Always include type hints:
+```python
+async def fetch_points(
+    self,
+    start_date: str,
+    end_date: str,
+    timezone: str = "UTC"
+) -> list[dict]:
+    ...
+```
+
+## Common Tasks
+
+### Adding a Route
+1. Create handler in `app/routes/`
+2. Add to router in that file
+3. Include router in `app/main.py`
+4. Create template in `templates/`
+5. Add tests in `tests/test_routes.py`
+
+### Modifying Database
+1. Update method in `app/database.py`
+2. Ensure it's async
+3. Use `async with self.conn.execute(...)`
+4. Add test in `tests/test_database.py`
+
+### Changing Scheduler
+1. Edit `app/services/scheduler.py`
+2. **MUST** add test in `tests/test_scheduler.py`
+3. Run tests before committing
+4. Consider time edge cases
+
+## Dependencies
+- FastAPI - Web framework
+- aiosqlite - Async SQLite
+- httpx - Async HTTP client
+- Jinja2 - Templates
+- pytest + pytest-asyncio - Testing
+
+## Before Committing
+- [ ] Run tests: `uv run pytest`
+- [ ] Check coverage: `uv run pytest --cov=app`
+- [ ] Verify logging is appropriate
+- [ ] Ensure async/await used correctly
+- [ ] Type hints added
+- [ ] Error handling in place
+
+## Architecture Notes
+
+### Scheduler Behavior
+- Runs every 10 minutes
+- First scan: last 15 minutes
+- Subsequent scans: from last `completed_at` - 5 min
+- Skips if time range < 2 minutes
+- Marks stuck scans (>30 min) as failed
+
+### Database Schema
+- `flagged_points`: GPS outliers
+- `scan_history`: Scan execution records
+- Unique constraint on `point_id` prevents duplicates
+
+### API Integration
+- Dawarich API uses pagination (1000/page)
+- Requires `api_key` parameter
+- Fetch until empty response
+
+## Key Files to Know
+- `app/main.py` - App initialization, scheduler startup
+- `app/services/scheduler.py` - Background scanning logic
+- `app/database.py` - All data persistence
+- `tests/test_scheduler.py` - Critical test file

@@ -54,6 +54,21 @@
             }
         });
     });
+
+    function sortTable(column) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentSort = urlParams.get('sort_by');
+        const currentDir = urlParams.get('sort_dir') || 'desc';
+
+        let newDir = 'desc';
+        if (currentSort === column && currentDir === 'desc') {
+            newDir = 'asc';
+        }
+
+        urlParams.set('sort_by', column);
+        urlParams.set('sort_dir', newDir);
+        window.location.search = urlParams.toString();
+    }
     </script>
 {% endblock %}
 {% block content %}
@@ -64,25 +79,25 @@
     <!-- Status Filter Tabs -->
     <div style="margin: 20px 0; border-bottom: 2px solid #e0e0e0;">
         <div style="display: flex; gap: 5px;">
-            <a href="/review?status=pending&min_confidence={{ min_confidence }}"
+            <a href="/review?status=pending&min_confidence={{ min_confidence }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}"
                class="btn {{ 'btn-primary' if status_filter == 'pending' else 'btn-ghost' }}"
                style="border-radius: 8px 8px 0 0;
                       border-bottom: 3px solid {{ '#2563eb' if status_filter == 'pending' else 'transparent' }}">
                 ⏳ Pending ({{ stats.pending }})
             </a>
-            <a href="/review?status=deleted&min_confidence={{ min_confidence }}"
+            <a href="/review?status=deleted&min_confidence={{ min_confidence }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}"
                class="btn {{ 'btn-primary' if status_filter == 'deleted' else 'btn-ghost' }}"
                style="border-radius: 8px 8px 0 0;
                       border-bottom: 3px solid {{ '#2563eb' if status_filter == 'deleted' else 'transparent' }}">
                 🗑️ Deleted ({{ stats.deleted }})
             </a>
-            <a href="/review?status=ignored&min_confidence={{ min_confidence }}"
+            <a href="/review?status=ignored&min_confidence={{ min_confidence }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}"
                class="btn {{ 'btn-primary' if status_filter == 'ignored' else 'btn-ghost' }}"
                style="border-radius: 8px 8px 0 0;
                       border-bottom: 3px solid {{ '#2563eb' if status_filter == 'ignored' else 'transparent' }}">
                 👁️ Ignored ({{ stats.ignored }})
             </a>
-            <a href="/review?status=all&min_confidence={{ min_confidence }}"
+            <a href="/review?status=all&min_confidence={{ min_confidence }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}"
                class="btn {{ 'btn-primary' if status_filter == 'all' else 'btn-ghost' }}"
                style="border-radius: 8px 8px 0 0;
                       border-bottom: 3px solid {{ '#2563eb' if status_filter == 'all' else 'transparent' }}">
@@ -103,7 +118,7 @@
             <div style="display: flex; gap: 10px; align-items: center;">
                 <label for="confidence-filter" style="font-weight: normal;">Min Confidence:</label>
                 <select id="confidence-filter"
-                        onchange="window.location.href='/review?status={{ status_filter }}&min_confidence='+this.value"
+                        onchange="window.location.href='/review?status={{ status_filter }}&min_confidence='+this.value+'&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}'"
                         style="padding: 8px;
                                border-radius: 4px;
                                border: 1px solid #ddd">
@@ -154,11 +169,33 @@
             <thead>
                 <tr>
                     <th style="width: 50px;"></th>
-                    {% if status_filter == 'all' %}<th>Status</th>{% endif %}
-                    <th>Detection Type & Details</th>
-                    <th>Timestamp</th>
+                    {% if status_filter == 'all' %}
+                        <th onclick="sortTable('status')" style="cursor: pointer; user-select: none;">
+                            Status
+                            {% if sort_by == 'status' %}
+                                {{ '▼' if sort_dir == 'desc' else '▲' }}
+                            {% endif %}
+                        </th>
+                    {% endif %}
+                    <th onclick="sortTable('point_id')" style="cursor: pointer; user-select: none;">
+                        Detection Type & Details
+                        {% if sort_by == 'point_id' %}
+                            {{ '▼' if sort_dir == 'desc' else '▲' }}
+                        {% endif %}
+                    </th>
+                    <th onclick="sortTable('timestamp')" style="cursor: pointer; user-select: none;">
+                        Timestamp
+                        {% if sort_by == 'timestamp' %}
+                            {{ '▼' if sort_dir == 'desc' else '▲' }}
+                        {% endif %}
+                    </th>
                     <th>Location</th>
-                    <th>Confidence</th>
+                    <th onclick="sortTable('confidence')" style="cursor: pointer; user-select: none;">
+                        Confidence
+                        {% if sort_by == 'confidence' %}
+                            {{ '▼' if sort_dir == 'desc' else '▲' }}
+                        {% endif %}
+                    </th>
                     <th>Actions</th>
                 </tr>
             </thead>

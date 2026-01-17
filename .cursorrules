@@ -1,0 +1,115 @@
+# Dawarich Cleaner - AI Assistant Rules
+
+## Project Overview
+This is a FastAPI-based web application for detecting and managing GPS outliers in Dawarich location data.
+- **Framework**: FastAPI with Jinja2 templates
+- **Database**: SQLite with async support (aiosqlite)
+- **Background Tasks**: Asyncio-based scheduler
+- **Testing**: pytest with pytest-asyncio
+- **Package Manager**: uv
+
+## Code Style & Conventions
+
+### Python
+- Use Python 3.12+ features
+- Follow PEP 8 style guidelines
+- Use type hints for all function parameters and return values
+- Prefer async/await for I/O operations
+- Use descriptive variable names, avoid abbreviations
+
+### File Organization
+```
+app/
+  ├── config.py        # Settings and configuration
+  ├── database.py      # Database operations
+  ├── models.py        # Pydantic models
+  ├── main.py         # FastAPI app entry point
+  ├── routes/         # HTTP endpoints
+  └── services/       # Business logic
+```
+
+### Testing
+- Place tests in `tests/` directory
+- Use `pytest` with `pytest-asyncio`
+- Mock external API calls (DawarichService)
+- Run tests with: `uv run pytest`
+- Aim for >80% code coverage
+
+### Logging
+- Use Python's `logging` module
+- Include emojis for visual clarity (📅 🔍 ✅ ❌ ⚠️)
+- Format: `logger.info("📅 Message: details")`
+
+## Architecture Patterns
+
+### Database
+- All database operations are async
+- Use `Database` class from `app/database.py`
+- Database is initialized in `app/main.py` and stored in `app.state.db`
+
+### Scheduler
+- `AutoScanScheduler` runs every 10 minutes
+- Uses `completed_at` timestamp for next scan start (with 5min overlap)
+- First scan looks back 15 minutes only
+- Handles stuck scans (>30min) by marking as failed
+
+### Routes
+- Use dependency injection: `db: Database = request.app.state.db`
+- Return HTMLResponse with Jinja2 templates
+- Handle errors with HTTPException
+
+### Services
+- `DawarichService`: API client for Dawarich
+- `OutlierDetector`: GPS outlier detection logic
+- `AutoScanScheduler`: Background scan automation
+
+## Common Commands
+```bash
+# Run tests
+uv run pytest
+
+# Run with coverage
+uv run pytest --cov=app
+
+# Run specific test
+uv run pytest tests/test_scheduler.py::test_name -v
+
+# Run development server
+uv run uvicorn app.main:app --reload
+
+# Run in Docker
+docker build -t dawarich-cleaner .
+docker run -p 8000:8000 dawarich-cleaner
+```
+
+## Important Notes
+
+### Scheduler Time Handling
+- **CRITICAL**: Use `completed_at` timestamp, not `end_date` string
+- `end_date` is stored as "YYYY-MM-DD" (parses to midnight)
+- Always use actual completion timestamp to avoid rescanning same dates
+
+### API Integration
+- Dawarich API requires `api_key` parameter
+- Points are paginated (1000 per page)
+- Fetch all pages until empty response
+
+### Outlier Detection
+- Default: 50 m/s max speed, 50m max distance
+- Returns list of flagged points with reasons
+- Duplicates are automatically skipped in database
+
+## When Making Changes
+
+1. **Before editing**: Read related files for context
+2. **Database changes**: Update both `database.py` and add migration logic
+3. **API changes**: Update routes, models, and templates
+4. **Scheduler changes**: Update tests in `test_scheduler.py`
+5. **Always**: Run tests after changes
+6. **For bug fixes**: Add regression test first
+
+## Error Handling
+- Use try/except for external API calls
+- Log errors with full traceback: `logger.error("message", exc_info=True)`
+- Update scan_history status to "failed" on errors
+- Return user-friendly error messages in templates

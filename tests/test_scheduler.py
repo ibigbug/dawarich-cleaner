@@ -148,3 +148,83 @@ async def test_scheduler_first_scan():
             assert mock_db.create_scan_history.call_count >= 1
             # Should update scan history as completed
             assert mock_db.update_scan_history.call_count >= 1
+
+
+@pytest.mark.asyncio
+async def test_scheduler_uses_completion_timestamp():
+    """Test that scheduler uses completion timestamp from last scan to avoid rescanning same dates"""
+    mock_db = MagicMock()
+    mock_db.get_last_scan = AsyncMock(return_value=None)
+
+    # Last scan completed 12 minutes ago
+    completed_timestamp = (datetime.now() - timedelta(minutes=12)).timestamp()
+    mock_db.get_last_completed_scan = AsyncMock(
+        return_value={
+            "id": 1,
+            "end_date": "2026-01-16",  # Date-only string (would be midnight)
+            "completed_at": completed_timestamp,  # Actual completion time
+        }
+    )
+
+    mock_db.create_scan_history = AsyncMock(return_value=2)
+    mock_db.update_scan_history = AsyncMock()
+    mock_db.save_flagged_point = AsyncMock(return_value=True)
+
+    with patch("app.services.scheduler.DawarichService") as mock_dawarich_class:
+        mock_dawarich = MagicMock()
+        mock_dawarich.fetch_points = AsyncMock(return_value=[])
+        mock_dawarich_class.return_value = mock_dawarich
+
+        with patch("app.services.scheduler.detect_outliers", return_value=[]):
+            scheduler = AutoScanScheduler(mock_db)
+            await scheduler._run_scan()
+
+            # Verify scan was created
+            mock_db.create_scan_history.assert_called_once()
+
+            # Get the call args to verify dates
+            call_kwargs = mock_db.create_scan_history.call_args[1]
+            start_date_str = call_kwargs["start_date"]
+
+            # Start date should be based on completed_at (12 min ago - 5 min overlap = 17 min ago)
+            # NOT based on end_date string "2026-01-16" which would parse to midnight
+            # So start_date should be TODAY (not 2026-01-16)
+            expected_date = datetime.now().strftime("%Y-%m-%d")
+            assert start_date_str == expected_date, (
+                f"Expected start_date to be {expected_date} based on completion timestamp, "
+                f"but got {start_date_str}"
+            )
+
+
+@pytest.mark.asyncio
+async def test_scheduler_first_scan_uses_15_minutes():
+    """Test that first scan only looks back 15 minutes, not 24 hours"""
+    mock_db = MagicMock()
+    mock_db.get_last_scan = AsyncMock(return_value=None)
+    mock_db.get_last_completed_scan = AsyncMock(return_value=None)  # No previous scans
+    mock_db.create_scan_history = AsyncMock(return_value=1)
+    mock_db.update_scan_history = AsyncMock()
+
+    with patch("app.services.scheduler.DawarichService") as mock_dawarich_class:
+        mock_dawarich = MagicMock()
+        mock_dawarich.fetch_points = AsyncMock(return_value=[])
+        mock_dawarich_class.return_value = mock_dawarich
+
+        with patch("app.services.scheduler.detect_outliers", return_value=[]):
+            scheduler = AutoScanScheduler(mock_db)
+            await scheduler._run_scan()
+
+            # Verify scan was created
+            mock_db.create_scan_history.assert_called_once()
+
+            # Get the call args to check the date range
+            call_kwargs = mock_db.create_scan_history.call_args[1]
+            start_date_str = call_kwargs["start_date"]
+            end_date_str = call_kwargs["end_date"]
+
+            # Both should be today (15 minutes ago is still today)
+            today = datetime.now().strftime("%Y-%m-%d")
+            assert start_date_str == today, (
+                f"First scan should start from today (15 min ago), got {start_date_str}"
+            )
+            assert end_date_str == today, f"First scan should end today, got {end_date_str}"
