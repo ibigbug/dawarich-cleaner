@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% block title %}Review Flagged Points - Dawarich Cleaner{% endblock %}
+{% block extra_head %}
+    <script>
+    function selectAll(checked) {
+        document.querySelectorAll('.point-checkbox').forEach(cb => cb.checked = checked);
+    }
+    
+    function handleAction(action) {
+        const selected = Array.from(document.querySelectorAll('.point-checkbox:checked'))
+            .map(cb => cb.value);
+        
+        if (selected.length === 0) {
+            alert('Please select at least one point');
+            return;
+        }
+        
+        if (action === 'delete' && !confirm(`Delete ${selected.length} points from Dawarich?`)) {
+            return;
+        }
+        
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/action/' + action;
+        
+        selected.forEach(id => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'point_ids';
+            input.value = id;
+            form.appendChild(input);
+        });
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+    
+    // Convert UTC timestamps to browser local time
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.timestamp-cell').forEach(cell => {
+            const timestamp = parseInt(cell.getAttribute('data-timestamp'));
+            if (!isNaN(timestamp)) {
+                const date = new Date(timestamp * 1000);
+                const formatted = date.toLocaleString(undefined, {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                });
+                cell.textContent = formatted;
+            }
+        });
+    });
+    </script>
+{% endblock %}
+{% block content %}
+    <div class="header">
+        <h1>📋 Review Flagged Points</h1>
+        <a href="/" class="btn btn-secondary">← Back to Dashboard</a>
+    </div>
+    <!-- Status Filter Tabs -->
+    <div style="margin: 20px 0; border-bottom: 2px solid #e0e0e0;">
+        <div style="display: flex; gap: 5px;">
+            <a href="/review?status=pending&min_confidence={{ min_confidence }}"
+               class="btn {{ 'btn-primary' if status_filter == 'pending' else 'btn-ghost' }}"
+               style="border-radius: 8px 8px 0 0;
+                      border-bottom: 3px solid {{ '#2563eb' if status_filter == 'pending' else 'transparent' }}">
+                ⏳ Pending ({{ stats.pending }})
+            </a>
+            <a href="/review?status=deleted&min_confidence={{ min_confidence }}"
+               class="btn {{ 'btn-primary' if status_filter == 'deleted' else 'btn-ghost' }}"
+               style="border-radius: 8px 8px 0 0;
+                      border-bottom: 3px solid {{ '#2563eb' if status_filter == 'deleted' else 'transparent' }}">
+                🗑️ Deleted ({{ stats.deleted }})
+            </a>
+            <a href="/review?status=ignored&min_confidence={{ min_confidence }}"
+               class="btn {{ 'btn-primary' if status_filter == 'ignored' else 'btn-ghost' }}"
+               style="border-radius: 8px 8px 0 0;
+                      border-bottom: 3px solid {{ '#2563eb' if status_filter == 'ignored' else 'transparent' }}">
+                👁️ Ignored ({{ stats.ignored }})
+            </a>
+            <a href="/review?status=all&min_confidence={{ min_confidence }}"
+               class="btn {{ 'btn-primary' if status_filter == 'all' else 'btn-ghost' }}"
+               style="border-radius: 8px 8px 0 0;
+                      border-bottom: 3px solid {{ '#2563eb' if status_filter == 'all' else 'transparent' }}">
+                📊 All ({{ stats.total_flagged }})
+            </a>
+        </div>
+    </div>
+    <div class="card">
+        <div style="padding: 20px 0;
+                    display: flex;
+                    gap: 10px;
+                    align-items: center;
+                    flex-wrap: wrap">
+            <label style="margin-right: auto;">
+                <input type="checkbox" onchange="selectAll(this.checked)">
+                Select All ({{ flagged_points|length }} points shown)
+            </label>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <label for="confidence-filter" style="font-weight: normal;">Min Confidence:</label>
+                <select id="confidence-filter"
+                        onchange="window.location.href='/review?status={{ status_filter }}&min_confidence='+this.value"
+                        style="padding: 8px;
+                               border-radius: 4px;
+                               border: 1px solid #ddd">
+                    <option value="0.0" {{ 'selected' if min_confidence <= 0.0 else '' }}>All (0%)
+                    </option>
+                    <option value="0.3" {{ 'selected' if min_confidence == 0.3 else '' }}>Low (30%)
+                    </option>
+                    <option value="0.5" {{ 'selected' if min_confidence == 0.5 else '' }}>Medium (50%)
+                    </option>
+                    <option value="0.7" {{ 'selected' if min_confidence == 0.7 else '' }}>High (70%)
+                    </option>
+                    <option value="0.9" {{ 'selected' if min_confidence == 0.9 else '' }}>Very High (90%)
+                    </option>
+                </select>
+            </div>
+            {% if status_filter == 'pending' %}
+                <button onclick="handleAction('delete')" class="btn btn-danger">Delete Selected</button>
+                <button onclick="handleAction('ignore')" class="btn btn-secondary">Ignore Selected</button>
+                <button onclick="handleAction('remove')"
+                        class="btn"
+                        style="background: #d63031"
+                        title="Permanently delete from database">Remove from DB</button>
+            {% elif status_filter in ['deleted', 'ignored'] %}
+                <button onclick="handleAction('restore')"
+                        class="btn"
+                        style="background: #00b894">Restore Selected</button>
+                <button onclick="handleAction('remove')"
+                        class="btn"
+                        style="background: #d63031"
+                        title="Permanently delete from database">Remove from DB</button>
+            {% elif status_filter == 'all' %}
+                <button onclick="handleAction('delete')" class="btn btn-danger">Delete Selected</button>
+                <button onclick="handleAction('ignore')" class="btn btn-secondary">Ignore Selected</button>
+                <button onclick="handleAction('restore')"
+                        class="btn"
+                        style="background: #00b894">Restore Selected</button>
+                <button onclick="handleAction('remove')"
+                        class="btn"
+                        style="background: #d63031"
+                        title="Permanently delete from database">Remove from DB</button>
+            {% endif %}
+        </div>
+        <div style="padding: 10px 0; color: #666; font-size: 0.9em;">
+            💡 <strong>Re-scanning behavior:</strong> If you scan the same date range again, already-flagged points won't be duplicated.
+            Deleted/ignored points remain in that state unless you restore them below.
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 50px;"></th>
+                    {% if status_filter == 'all' %}<th>Status</th>{% endif %}
+                    <th>Detection Type & Details</th>
+                    <th>Timestamp</th>
+                    <th>Location</th>
+                    <th>Confidence</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if flagged_points %}
+                    {% for point in flagged_points %}
+                        {% set details = point.detection_details_parsed %}
+                        <tr>
+                            <td>
+                                <input type="checkbox"
+                                       name="point_ids"
+                                       value="{{ point.id }}"
+                                       class="point-checkbox">
+                            </td>
+                            {% if status_filter == 'all' %}
+                                <td>
+                                    <span style="padding: 3px 8px;
+                                                 border-radius: 3px;
+                                                 font-size: 0.85em;
+                                                 background: {{ '#fdcb6e' if point.status == 'pending' else '#ff7675' if point.status == 'deleted' else '#74b9ff' }}">
+                                        {{ point.status.title() }}
+                                    </span>
+                                </td>
+                            {% endif %}
+                            <td>
+                                {% if point.detection_reason == 'flying_point' %}
+                                    <div>
+                                        <strong>✈️ Flying Point</strong> <span style="color: #888; font-size: 0.85em;">(ID: {{ point.point_id }})</span>
+                                    </div>
+                                    <div style="font-size: 0.9em; color: #666;">
+                                        From prev: {{ "%.2f"|format(details.distance_from_prev_km) }} km @ {{ "%.0f"|format(details.speed_to_point_kmh or 0) }} km/h
+                                        <br>
+                                        To next: {{ "%.2f"|format(details.distance_to_next_km) }} km @ {{ "%.0f"|format(details.speed_from_point_kmh or 0) }} km/h
+                                        <br>
+                                        <strong>Direct route: {{ "%.2f"|format(details.direct_route_km) }} km @ {{ "%.0f"|format(details.speed_direct_kmh or 0) }} km/h</strong>
+                                        <br>
+                                        (Point jumped {{ "%.2f"|format(details.distance_from_prev_km + details.distance_to_next_km - details.direct_route_km) }} km off route)
+                                    </div>
+                                {% else %}
+                                    <div>
+                                        <strong>⚠️ {{ point.detection_reason.replace('_', ' ').title() }}</strong> <span style="color: #888; font-size: 0.85em;">(ID: {{ point.point_id }})</span>
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td data-timestamp="{{ point.timestamp }}" class="timestamp-cell">{{ point.timestamp_str }}</td>
+                            <td>{{ "%.6f"|format(point.latitude) }}, {{ "%.6f"|format(point.longitude) }}</td>
+                            <td>
+                                <div style="font-weight: bold;
+                                            color: {{ '#d63031' if point.confidence_score >= 0.7 else '#fdcb6e' if point.confidence_score >= 0.4 else '#74b9ff' }}">
+                                    {{ "%.0f"|format(point.confidence_score * 100) }}%
+                                </div>
+                            </td>
+                            <td>
+                                <a href="https://www.google.com/maps?q={{ point.latitude }},{{ point.longitude }}"
+                                   target="_blank"
+                                   class="btn-link">Google</a>
+                                <span style="margin: 0 5px;">|</span>
+                                <a href="{{ request.scope.env.DAWARICH_API_URL }}/map/v2?start_at={{ point.timestamp_url_start|urlencode }}&end_at={{ point.timestamp_url_end|urlencode }}"
+                                   target="_blank"
+                                   class="btn-link">Dawarich</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="{{ 7 if status_filter == 'all' else 6 }}"
+                            style="text-align: center;
+                                   padding: 40px;
+                                   color: #999">
+                            No {{ status_filter if status_filter != 'all' else '' }} points to review with confidence ≥ {{ "%.0f"|format(min_confidence * 100) }}%
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    {% if status_filter == 'pending' %}
+        <div style="padding: 10px 0;
+                    color: #666;
+                    font-size: 0.9em;
+                    margin-top: 10px">
+            💡 <strong>Re-scanning behavior:</strong> If you scan the same date range again, already-flagged points won't be duplicated.
+            Deleted/ignored points remain in that state unless you restore them.
+        </div>
+    {% endif %}
+{% endblock %}

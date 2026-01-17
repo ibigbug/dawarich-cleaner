@@ -1,0 +1,18 @@
+[project]
+name = "dawarich-cleaner"
+version = "0.1.0"
+description = "Python Cloudflare Worker with cron job for Dawarich cleaning tasks"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "jinja2",
+    "python-multipart",
+    "pytz>=2025.2",
+]
+
+[dependency-groups]
+dev = [
+    "djlint>=1.36.4",
+    "workers-py",
+    "workers-runtime-sdk",
+]

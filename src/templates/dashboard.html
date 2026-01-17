@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="header">
+    <div>
+        <h1>🧹 Dawarich Cleaner</h1>
+        <p class="subtitle">Detect and clean outlier GPS points from your Dawarich instance</p>
+    </div>
+</div>
+
+<div class="stats">
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.pending }}</div>
+        <div class="stat-label">Pending Review</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.deleted }}</div>
+        <div class="stat-label">Deleted Points</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.total_flagged }}</div>
+        <div class="stat-label">Total Flagged</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.last_scan }}</div>
+        <div class="stat-label">Last Scan</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2 style="margin-bottom: 20px;">🔍 Scan for Outliers</h2>
+    <form action="/scan" method="POST" id="scanForm">
+        <div class="flex">
+            <div class="flex-1">
+                <div class="form-group">
+                    <label for="start_date">Start Date</label>
+                    <input type="date" id="start_date" name="start_date" required>
+                </div>
+            </div>
+            <div class="flex-1">
+                <div class="form-group">
+                    <label for="end_date">End Date</label>
+                    <input type="date" id="end_date" name="end_date" required>
+                </div>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="timezone">Timezone (for date interpretation)</label>
+            <select id="timezone" name="timezone" required>
+                <option value="America/Los_Angeles">Pacific Time (US & Canada)</option>
+                <option value="America/Denver">Mountain Time (US & Canada)</option>
+                <option value="America/Chicago">Central Time (US & Canada)</option>
+                <option value="America/New_York">Eastern Time (US & Canada)</option>
+                <option value="UTC">UTC</option>
+                <option value="Europe/London">London</option>
+                <option value="Europe/Paris">Paris</option>
+                <option value="Europe/Berlin">Berlin</option>
+                <option value="Asia/Tokyo">Tokyo</option>
+                <option value="Asia/Shanghai">Shanghai</option>
+                <option value="Asia/Hong_Kong">Hong Kong</option>
+                <option value="Asia/Singapore">Singapore</option>
+                <option value="Australia/Sydney">Sydney</option>
+            </select>
+            <small style="color: #666; display: block; margin-top: 5px;">
+                Selected: <span id="timezone-display"></span>
+            </small>
+        </div>
+        <div class="flex">
+            <div class="flex-1">
+                <div class="form-group">
+                    <label for="max_speed">Max Speed Threshold (km/h)</label>
+                    <input type="number" id="max_speed" name="max_speed" value="150" min="50" max="500">
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        Flag points that require speeds above this limit
+                    </small>
+                </div>
+            </div>
+            <div class="flex-1">
+                <div class="form-group">
+                    <label for="jump_radius">Jump Distance Threshold (km)</label>
+                    <input type="number" id="jump_radius" name="jump_radius" value="0.5" min="0.1" max="10" step="0.1">
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        <strong>Flying Point Detection:</strong> Flags points that jump more than this distance from BOTH neighbors, while the neighbors remain close to each other (within 2× threshold). This catches GPS glitches that make points "fly" away from the actual route.
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <button type="submit" class="btn btn-primary" style="flex: 1;">Start Scan</button>
+            <a href="/review" class="btn btn-secondary" style="flex: 1;">Review Flagged Points</a>
+        </div>
+    </form>
+</div>
+
+<script>
+// Set default dates to today (local timezone)
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const localDate = `${year}-${month}-${day}`;
+    
+    document.getElementById('start_date').value = localDate;
+    document.getElementById('end_date').value = localDate;
+    
+    // Auto-detect timezone
+    const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const tzSelect = document.getElementById('timezone');
+    
+    // Try to match detected timezone with dropdown options
+    let matched = false;
+    for (let option of tzSelect.options) {
+        if (option.value === detectedTz) {
+            option.selected = true;
+            matched = true;
+            break;
+        }
+    }
+    
+    // If no exact match, add the detected timezone as an option
+    if (!matched) {
+        const newOption = document.createElement('option');
+        newOption.value = detectedTz;
+        newOption.text = `${detectedTz} (auto-detected)`;
+        newOption.selected = true;
+        tzSelect.insertBefore(newOption, tzSelect.firstChild);
+    }
+    
+    // Update timezone display
+    function updateTimezoneDisplay() {
+        const selectedTz = tzSelect.value;
+        const offset = new Date().toLocaleString('en-US', {
+            timeZone: selectedTz,
+            timeZoneName: 'short'
+        }).split(' ').pop();
+        document.getElementById('timezone-display').textContent = `${selectedTz} (${offset})`;
+    }
+    
+    updateTimezoneDisplay();
+    tzSelect.addEventListener('change', updateTimezoneDisplay);
+});
+</script>
+
+<div class="alert alert-info">
+    <strong>Detection Method:</strong><br>
+    • <strong>Flying Point:</strong> Points that are far from both neighbors (> threshold) while the neighbors remain close to each other. This catches GPS glitches where a point "flies away" from the route.
+</div>
+{% endblock %}

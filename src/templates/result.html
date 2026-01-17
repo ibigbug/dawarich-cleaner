@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Success' if success else 'Error' }} - Dawarich Cleaner{% endblock %}
+
+{% block extra_styles %}
+.result-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 70vh;
+}
+.result-card {
+    text-align: center;
+    max-width: 600px;
+}
+.emoji { font-size: 4rem; margin-bottom: 20px; }
+.result-title { 
+    color: {{ '#10b981' if success else '#dc2626' }};
+    margin-bottom: 15px;
+    font-size: 2rem;
+}
+.result-message { 
+    color: #666;
+    margin-bottom: 20px;
+    font-size: 1.1rem;
+}
+.result-details {
+    background: #f5f5f5;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    text-align: left;
+}
+.result-details dt {
+    font-weight: bold;
+    color: #666;
+    margin-top: 10px;
+}
+.result-details dd {
+    margin: 5px 0 0 20px;
+    color: #333;
+}
+{% endblock %}
+
+{% block content %}
+<div class="result-container">
+    <div class="card result-card">
+        <div class="emoji">{{ '✅' if success else '❌' }}</div>
+        <h1 class="result-title">{{ 'Success!' if success else 'Error' }}</h1>
+        <p class="result-message">{{ message }}</p>
+        
+        {% if details %}
+        <div class="result-details">
+            <dl>
+                {% if details.start_date %}
+                <dt>Start Date:</dt>
+                <dd>{{ details.start_date }}</dd>
+                {% endif %}
+                
+                {% if details.end_date %}
+                <dt>End Date:</dt>
+                <dd>{{ details.end_date }}</dd>
+                {% endif %}
+                
+                {% if details.points_scanned is defined %}
+                <dt>Points Scanned:</dt>
+                <dd>{{ details.points_scanned }}</dd>
+                {% endif %}
+                
+                {% if details.points_flagged is defined %}
+                <dt>Points Flagged:</dt>
+                <dd>{{ details.points_flagged }}</dd>
+                {% endif %}
+            </dl>
+        </div>
+        {% endif %}
+        
+        <a href="{{ redirect_url }}" class="btn btn-primary">Continue</a>
+    </div>
+</div>
+{% endblock %}
