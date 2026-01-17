@@ -73,7 +73,11 @@ class Database:
             }
 
     async def get_flagged_points(
-        self, status: str = "pending", min_confidence: float = 0.0
+        self,
+        status: str = "pending",
+        min_confidence: float = 0.0,
+        sort_by: str = "timestamp",
+        sort_dir: str = "desc",
     ) -> list[dict[str, Any]]:
         """Get flagged points by status and confidence threshold"""
         async with self.async_session() as session:
@@ -83,10 +87,18 @@ class Database:
             if status and status != "all":
                 stmt = stmt.where(FlaggedPoint.status == status)
 
-            stmt = stmt.order_by(
-                FlaggedPoint.confidence_score.desc(),
-                FlaggedPoint.timestamp.desc(),
-            )
+            # Apply sorting
+            sort_column = {
+                "timestamp": FlaggedPoint.timestamp,
+                "confidence": FlaggedPoint.confidence_score,
+                "point_id": FlaggedPoint.point_id,
+                "status": FlaggedPoint.status,
+            }.get(sort_by, FlaggedPoint.timestamp)
+
+            if sort_dir == "asc":
+                stmt = stmt.order_by(sort_column.asc())
+            else:
+                stmt = stmt.order_by(sort_column.desc())
 
             result = await session.execute(stmt)
             points = result.scalars().all()

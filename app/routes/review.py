@@ -22,6 +22,8 @@ async def review(
     request: Request,
     status: str = "pending",
     min_confidence: float = 0.0,
+    sort_by: str = "timestamp",
+    sort_dir: str = "desc",
 ):
     """Display flagged points for review"""
     settings = get_settings()
@@ -34,6 +36,8 @@ async def review(
     flagged_points = await db.get_flagged_points(
         status=status if status else None,
         min_confidence=min_confidence,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
     )
 
     return templates.TemplateResponse(
@@ -44,6 +48,8 @@ async def review(
             "stats": stats,
             "status_filter": status,
             "min_confidence": min_confidence,
+            "sort_by": sort_by,
+            "sort_dir": sort_dir,
             "dawarich_api_url": settings.dawarich_api_url,
         },
     )
