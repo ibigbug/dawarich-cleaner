@@ -17,8 +17,8 @@ class Settings(BaseSettings):
     )
 
     # Dawarich API
-    dawarich_api_url: str
-    dawarich_api_key: str
+    dawarich_api_url: str = "http://localhost:3000"
+    dawarich_api_key: str = "test_key"
 
     # Database - supports both SQLite and PostgreSQL
     database_url: str = "sqlite+aiosqlite:///./data/dawarich-cleaner.db"
