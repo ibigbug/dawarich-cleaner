@@ -80,7 +80,7 @@
                     <label for="jump_radius">Jump Distance Threshold (meters)</label>
                     <input type="number" id="jump_radius" name="jump_radius" value="50" min="5" max="10000" step="1">
                     <small style="color: #666; display: block; margin-top: 5px;">
-                        <strong>Flying Point Detection:</strong> Flags points that jump more than this distance from BOTH neighbors, while the neighbors remain close to each other (within 2× threshold). This catches GPS glitches that make points "fly" away from the actual route.
+                        <strong>Spike Pattern Detection:</strong> Flags points that jump more than this distance from BOTH neighbors, while the neighbors remain close to each other (within 2× threshold). This catches GPS glitches and sudden position jumps away from the actual route.
                     </small>
                 </div>
             </div>
@@ -143,7 +143,9 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <div class="alert alert-info">
-    <strong>Detection Method:</strong><br>
-    • <strong>Flying Point:</strong> Points that are far from both neighbors (> threshold) while the neighbors remain close to each other. This catches GPS glitches where a point "flies away" from the route.
+    <strong>Detection Methods:</strong><br>
+    • <strong>Speed Outlier:</strong> Points requiring impossible speeds (> threshold) to reach from previous or next point. Detects unrealistic GPS jumps or teleportation.<br>
+    • <strong>Jump Outlier:</strong> Points with large distance jumps (> threshold) or spike patterns where a point is far from both neighbors while the neighbors remain close to each other. Catches GPS glitches and position anomalies.<br>
+    • <strong>Non-Increasing Timestamp:</strong> Points with duplicate or backwards timestamps, indicating GPS receiver issues or data corruption.
 </div>
 {% endblock %}

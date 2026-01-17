@@ -127,7 +127,7 @@ def test_detect_outliers_confidence_score():
         assert 0 <= outlier["confidence_score"] <= 1.0
 
 
-def test_detect_outliers_flying_point():
+def test_detect_outliers_spike_pattern():
     """Test jump outlier detection (point jumps away and back - spike pattern)"""
     points = [
         {"id": 1, "latitude": 0.0, "longitude": 0.0, "timestamp": 1000},

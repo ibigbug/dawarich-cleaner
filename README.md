@@ -4,7 +4,7 @@ Automated GPS outlier detection and cleaning for your Dawarich instance.
 
 ## Features
 
-- 🔍 **Smart Detection**: Flying points, unrealistic speeds, and GPS anomalies
+- 🔍 **Smart Detection**: Distance jumps, unrealistic speeds, and GPS anomalies
 - 🎯 **Confidence Scoring**: Multi-factor analysis with confidence ratings
 - 🗺️ **Interactive Review**: Web UI to review and manage flagged points
 - 🤖 **Auto-Scan**: Background scheduler runs every 10 minutes
@@ -122,7 +122,7 @@ DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/dawarich_cleaner
 
 ### Detection Methods
 
-- **Flying Points**: Sudden jumps away from trajectory and back
+- **Jump Outliers**: Large distance jumps and spike patterns (sudden jumps away from trajectory and back)
 - **Speed Violations**: Movement exceeding 30 m/s (108 km/h) default
 - **Distance Spikes**: Points > 500m from expected trajectory
 - **Timestamp Issues**: Duplicate or out-of-order timestamps
