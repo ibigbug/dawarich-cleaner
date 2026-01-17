@@ -3,7 +3,7 @@
 import asyncio
 import contextlib
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from ..config import get_settings
 from ..database import Database
@@ -30,7 +30,7 @@ class AutoScanScheduler:
 
         self._running = True
         self.task = asyncio.create_task(self._run_loop())
-        logger.info("🤖 Auto-scan scheduler started (every 10 minutes)")
+        logger.info("Auto-scan scheduler started (every 10 minutes)")
 
     async def stop(self):
         """Stop the background scheduler"""
@@ -39,7 +39,7 @@ class AutoScanScheduler:
             self.task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self.task
-        logger.info("🛑 Auto-scan scheduler stopped")
+        logger.info("Auto-scan scheduler stopped")
 
     async def _run_loop(self):
         """Main loop that runs scans periodically"""
@@ -63,11 +63,11 @@ class AutoScanScheduler:
             # Check if the scan has been running for too long (stale/stuck)
             started_at = last_scan.get("started_at")
             if started_at:
-                time_running = datetime.now().timestamp() - started_at
+                time_running = datetime.now(UTC).timestamp() - started_at
                 # If running for more than 30 minutes, consider it stuck/failed
                 if time_running > 1800:  # 30 minutes
                     logger.warning(
-                        f"⚠️  Found stuck scan (running for {time_running / 60:.0f} min), marking as failed"
+                        f"Found stuck scan (running for {time_running / 60:.0f} min), marking as failed"
                     )
                     await self.db.update_scan_history(
                         last_scan["id"],
@@ -75,7 +75,7 @@ class AutoScanScheduler:
                         error_message="Scan timed out (exceeded 30 minutes)",
                     )
                 else:
-                    logger.info("⏸️  Skipping auto-scan: Another scan is in progress")
+                    logger.info("Skipping auto-scan: Another scan is in progress")
                     return
 
         # Get the last completed scan time
@@ -85,30 +85,32 @@ class AutoScanScheduler:
             # Use the scan completion time as the new start (with 5 min overlap)
             completed_at = last_completed.get("completed_at")
             if completed_at:
-                start_date = datetime.fromtimestamp(completed_at) - timedelta(minutes=5)
+                start_date = datetime.fromtimestamp(completed_at, tz=UTC) - timedelta(minutes=5)
             else:
                 # Fallback: if no completion timestamp, use the end_date at 23:59:59
                 end_date_str = last_completed["end_date"]
-                last_scan_date = datetime.strptime(end_date_str, "%Y-%m-%d")
-                start_date = last_scan_date.replace(hour=23, minute=59, second=59)
-            logger.info(f"📅 Auto-scan from last scan: {start_date.strftime('%Y-%m-%d %H:%M')}")
+                # Parse date-only format and add time, then make UTC-aware
+                last_scan_date = datetime.strptime(end_date_str[:10], "%Y-%m-%d")
+                start_date = last_scan_date.replace(hour=23, minute=59, second=59, tzinfo=UTC)
+            logger.info(f"Auto-scan from last scan: {start_date.strftime('%Y-%m-%d %H:%M')} UTC")
         else:
             # First scan - scan last 15 minutes (slightly more than the 10 min interval)
-            start_date = datetime.now() - timedelta(minutes=15)
-            logger.info("📅 First auto-scan: scanning last 15 minutes")
+            start_date = datetime.now(UTC) - timedelta(minutes=15)
+            logger.info("First auto-scan: scanning last 15 minutes")
 
-        end_date = datetime.now()
+        end_date = datetime.now(UTC)
 
         # Don't scan if the time range is too small (less than 2 minutes)
         time_range = (end_date - start_date).total_seconds()
         if time_range < 120:
-            logger.info(f"⏸️  Skipping auto-scan: Time range too small ({time_range:.0f}s)")
+            logger.info(f"Skipping auto-scan: Time range too small ({time_range:.0f}s)")
             return
 
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        end_date_str = end_date.strftime("%Y-%m-%d")
+        # Use ISO format to preserve timezone info (UTC)
+        start_date_str = start_date.isoformat()
+        end_date_str = end_date.isoformat()
 
-        logger.info(f"🔍 Auto-scan: {start_date_str} to {end_date_str}")
+        logger.info(f"Auto-scan: {start_date_str} to {end_date_str}")
 
         # Create scan history record
         scan_id = await self.db.create_scan_history(
@@ -125,18 +127,18 @@ class AutoScanScheduler:
             points = await dawarich.fetch_points(start_date_str, end_date_str, "UTC")
 
             if not points:
-                logger.info("✅ Auto-scan: No points found")
+                logger.info("Auto-scan: No points found")
                 await self.db.update_scan_history(
                     scan_id, status="completed", points_scanned=0, points_flagged=0
                 )
                 return
 
-            logger.info(f"📊 Auto-scan: Analyzing {len(points)} points")
+            logger.info(f"Auto-scan: Analyzing {len(points)} points")
 
             # Use default thresholds: 50 m/s (180 km/h), 50m distance
             outliers = detect_outliers(points, max_speed_ms=50, max_distance_m=50)
 
-            logger.info(f"🚩 Auto-scan: Found {len(outliers)} potential outliers")
+            logger.info(f"Auto-scan: Found {len(outliers)} potential outliers")
 
             # Save new outliers (skip duplicates automatically)
             new_count = 0
@@ -153,11 +155,11 @@ class AutoScanScheduler:
                 points_flagged=new_count,
             )
 
-            logger.info(f"✅ Auto-scan complete: {new_count} new outliers flagged")
+            logger.info(f"Auto-scan complete: {new_count} new outliers flagged")
             if new_count < len(outliers):
                 logger.info(f"   (Skipped {len(outliers) - new_count} duplicates)")
 
         except Exception as e:
-            logger.error(f"❌ Error during auto-scan: {e}", exc_info=True)
+            logger.error(f"Error during auto-scan: {e}", exc_info=True)
             await self.db.update_scan_history(scan_id, status="failed", error_message=str(e))
             raise

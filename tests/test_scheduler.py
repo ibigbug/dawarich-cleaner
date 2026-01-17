@@ -227,9 +227,10 @@ async def test_scheduler_uses_completion_timestamp():
             # Start date should be based on completed_at (12 min ago - 5 min overlap = 17 min ago)
             # NOT based on end_date string "2026-01-16" which would parse to midnight
             # So start_date should be TODAY (not 2026-01-16)
+            # Format is now ISO with timezone to preserve time precision
             expected_date = datetime.now().strftime("%Y-%m-%d")
-            assert start_date_str == expected_date, (
-                f"Expected start_date to be {expected_date} based on completion timestamp, "
+            assert start_date_str.startswith(expected_date), (
+                f"Expected start_date to start with {expected_date} based on completion timestamp, "
                 f"but got {start_date_str}"
             )
 
@@ -261,8 +262,11 @@ async def test_scheduler_first_scan_uses_15_minutes():
             end_date_str = call_kwargs["end_date"]
 
             # Both should be today (15 minutes ago is still today)
+            # Format is now ISO with timezone to preserve time precision
             today = datetime.now().strftime("%Y-%m-%d")
-            assert start_date_str == today, (
+            assert start_date_str.startswith(today), (
                 f"First scan should start from today (15 min ago), got {start_date_str}"
             )
-            assert end_date_str == today, f"First scan should end today, got {end_date_str}"
+            assert end_date_str.startswith(today), (
+                f"First scan should end today, got {end_date_str}"
+            )

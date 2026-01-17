@@ -18,17 +18,50 @@ class DawarichService:
             "Content-Type": "application/json",
         }
 
+    def _parse_datetime(self, date_str: str, timezone: str, is_end: bool = False) -> datetime:
+        """Parse datetime string in various formats.
+
+        Args:
+            date_str: Date/datetime string in various formats
+            timezone: Timezone for naive datetimes
+            is_end: If True and date-only, use 23:59:59; otherwise 00:00:00
+
+        Returns:
+            Timezone-aware datetime
+        """
+        # Try ISO format with timezone first (e.g., "2024-01-15T14:30:00+00:00" or "Z")
+        if "T" in date_str and ("+" in date_str or "-" in date_str[11:] or date_str.endswith("Z")):
+            # Already has timezone info - parse as ISO
+            dt_str = date_str.replace("Z", "+00:00")
+            return datetime.fromisoformat(dt_str)
+
+        tz = pytz.timezone(timezone)
+
+        # Date only: "YYYY-MM-DD"
+        if len(date_str) == 10:
+            time_suffix = "23:59:59" if is_end else "00:00:00"
+            dt = datetime.strptime(f"{date_str} {time_suffix}", "%Y-%m-%d %H:%M:%S")
+            return tz.localize(dt)
+
+        # Datetime without timezone: "YYYY-MM-DD HH:MM:SS"
+        dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+        return tz.localize(dt)
+
     async def fetch_points(
         self, start_date: str, end_date: str, timezone: str = "UTC"
     ) -> list[dict[str, Any]]:
-        """Fetch location points for a date range"""
-        tz = pytz.timezone(timezone)
+        """Fetch location points for a date range.
 
-        start_dt = datetime.strptime(f"{start_date} 00:00:00", "%Y-%m-%d %H:%M:%S")
-        start_dt = tz.localize(start_dt)
-
-        end_dt = datetime.strptime(f"{end_date} 23:59:59", "%Y-%m-%d %H:%M:%S")
-        end_dt = tz.localize(end_dt)
+        Args:
+            start_date: One of:
+                - "YYYY-MM-DD" (date only, uses 00:00:00 in given timezone)
+                - "YYYY-MM-DD HH:MM:SS" (datetime, interpreted in given timezone)
+                - ISO format with timezone (e.g., "2024-01-15T00:00:00+00:00")
+            end_date: Same formats as start_date (date only uses 23:59:59)
+            timezone: Timezone name for interpreting naive dates (ignored if ISO format with tz)
+        """
+        start_dt = self._parse_datetime(start_date, timezone, is_end=False)
+        end_dt = self._parse_datetime(end_date, timezone, is_end=True)
 
         start_iso = start_dt.isoformat()
         end_iso = end_dt.isoformat()
