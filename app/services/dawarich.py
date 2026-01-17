@@ -1,9 +1,10 @@
 """Dawarich API client service"""
 
+from datetime import UTC, datetime
+from typing import Any
+
 import httpx
-from datetime import datetime, timezone
 import pytz
-from typing import List, Dict, Any
 
 
 class DawarichService:
@@ -19,7 +20,7 @@ class DawarichService:
 
     async def fetch_points(
         self, start_date: str, end_date: str, timezone: str = "UTC"
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Fetch location points for a date range"""
         tz = pytz.timezone(timezone)
 
@@ -75,7 +76,7 @@ class DawarichService:
 
         return all_points
 
-    async def delete_points(self, point_ids: List[int]) -> Dict[str, Any]:
+    async def delete_points(self, point_ids: list[int]) -> dict[str, Any]:
         """Delete multiple points by ID"""
         url = f"{self.base_url}/api/v1/points/bulk_destroy"
 
@@ -95,7 +96,7 @@ class DawarichService:
 
             return response.json()
 
-    async def reimport_points(self, points: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def reimport_points(self, points: list[dict[str, Any]]) -> dict[str, Any]:
         """Re-import points by creating them via POST /api/v1/points
 
         Args:
@@ -121,7 +122,7 @@ class DawarichService:
                                 if point["timestamp"] > 100_000_000_000
                                 else point["timestamp"]
                             ),
-                            tz=timezone.utc,
+                            tz=UTC,
                         ).isoformat()
                     )
                 },

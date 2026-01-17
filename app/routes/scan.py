@@ -1,15 +1,16 @@
 """Scan routes"""
 
-from fastapi import APIRouter, Request, Form, HTTPException
+import logging
+from datetime import datetime
+from pathlib import Path
+
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from pathlib import Path
-from datetime import datetime
-import logging
 
+from ..config import get_settings
 from ..database import Database
 from ..services import DawarichService, detect_outliers
-from ..config import get_settings
 
 router = APIRouter()
 template_dir = Path(__file__).parent.parent.parent / "templates"
@@ -43,7 +44,7 @@ async def scan(
         if jump_radius < 5 or jump_radius > 10000:
             raise ValueError("Jump radius must be between 5 and 10000 meters")
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid input: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid input: {str(e)}") from e
 
     logger.info(f"Starting scan: {start_date} to {end_date}")
 
@@ -71,9 +72,7 @@ async def scan(
         )
 
     logger.info(f"Analyzing {len(points)} points for outliers")
-    outliers = detect_outliers(
-        points, max_speed_ms=max_speed, max_distance_m=jump_radius
-    )
+    outliers = detect_outliers(points, max_speed_ms=max_speed, max_distance_m=jump_radius)
     logger.info(f"Detected {len(outliers)} potential outliers")
 
     new_count = 0
@@ -82,9 +81,7 @@ async def scan(
             new_count += 1
 
     await db.update_scan_history(scan_id, "completed", len(points), new_count)
-    logger.info(
-        f"Scan completed: {len(points)} points scanned, {new_count} new outliers flagged"
-    )
+    logger.info(f"Scan completed: {len(points)} points scanned, {new_count} new outliers flagged")
 
     message = f"Scanned {len(points)} points and flagged {new_count} outliers"
     return templates.TemplateResponse(

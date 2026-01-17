@@ -1,16 +1,17 @@
 """Main FastAPI application"""
 
+import logging
+import os
+from contextlib import asynccontextmanager
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from contextlib import asynccontextmanager
-from pathlib import Path
-import logging
-import os
 
 from .config import get_settings
 from .database import Database
-from .routes import dashboard_router, scan_router, review_router
+from .routes import dashboard_router, review_router, scan_router
 from .services.scheduler import AutoScanScheduler
 
 # Configure logging
@@ -80,9 +81,7 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health_check():
         """Health check endpoint"""
-        scheduler_running = (
-            hasattr(app.state, "scheduler") and app.state.scheduler._running
-        )
+        scheduler_running = hasattr(app.state, "scheduler") and app.state.scheduler._running
         return {
             "status": "healthy",
             "service": settings.app_name,

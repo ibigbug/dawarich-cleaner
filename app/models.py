@@ -1,6 +1,6 @@
 """SQLAlchemy ORM models"""
 
-from sqlalchemy import Column, Integer, Float, String, Text, Index, func
+from sqlalchemy import Column, Float, Index, Integer, String, Text, func
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()

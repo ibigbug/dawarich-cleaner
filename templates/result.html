@@ -14,12 +14,12 @@
     max-width: 600px;
 }
 .emoji { font-size: 4rem; margin-bottom: 20px; }
-.result-title { 
+.result-title {
     color: {{ '#10b981' if success else '#dc2626' }};
     margin-bottom: 15px;
     font-size: 2rem;
 }
-.result-message { 
+.result-message {
     color: #666;
     margin-bottom: 20px;
     font-size: 1.1rem;
@@ -48,7 +48,7 @@
         <div class="emoji">{{ '✅' if success else '❌' }}</div>
         <h1 class="result-title">{{ 'Success!' if success else 'Error' }}</h1>
         <p class="result-message">{{ message }}</p>
-        
+
         {% if details %}
         <div class="result-details">
             <dl>
@@ -56,27 +56,27 @@
                 <dt>Action:</dt>
                 <dd>{{ details.action.replace('_', ' ').title() }}</dd>
                 {% endif %}
-                
+
                 {% if details.points_affected is defined %}
                 <dt>Points Affected:</dt>
                 <dd>{{ details.points_affected }}</dd>
                 {% endif %}
-                
+
                 {% if details.start_date %}
                 <dt>Start Date:</dt>
                 <dd>{{ details.start_date }}</dd>
                 {% endif %}
-                
+
                 {% if details.end_date %}
                 <dt>End Date:</dt>
                 <dd>{{ details.end_date }}</dd>
                 {% endif %}
-                
+
                 {% if details.points_scanned is defined %}
                 <dt>Points Scanned:</dt>
                 <dd>{{ details.points_scanned }}</dd>
                 {% endif %}
-                
+
                 {% if details.points_flagged is defined %}
                 <dt>Points Flagged:</dt>
                 <dd>{{ details.points_flagged }}</dd>
@@ -84,7 +84,7 @@
             </dl>
         </div>
         {% endif %}
-        
+
         <a href="{{ redirect_url }}" class="btn btn-primary">Continue</a>
     </div>
 </div>

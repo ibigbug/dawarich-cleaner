@@ -5,24 +5,24 @@
     function selectAll(checked) {
         document.querySelectorAll('.point-checkbox').forEach(cb => cb.checked = checked);
     }
-    
+
     function handleAction(action) {
         const selected = Array.from(document.querySelectorAll('.point-checkbox:checked'))
             .map(cb => cb.value);
-        
+
         if (selected.length === 0) {
             alert('Please select at least one point');
             return;
         }
-        
+
         if (action === 'delete' && !confirm(`Delete ${selected.length} points from Dawarich?`)) {
             return;
         }
-        
+
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = '/action/' + action;
-        
+
         selected.forEach(id => {
             const input = document.createElement('input');
             input.type = 'hidden';
@@ -30,11 +30,11 @@
             input.value = id;
             form.appendChild(input);
         });
-        
+
         document.body.appendChild(form);
         form.submit();
     }
-    
+
     // Convert UTC timestamps to browser local time
     document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.timestamp-cell').forEach(cell => {

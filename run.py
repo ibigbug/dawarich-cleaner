@@ -2,9 +2,11 @@
 """
 WSGI/ASGI entry point for running the FastAPI application
 """
-import uvicorn
+
 import os
 from pathlib import Path
+
+import uvicorn
 from dotenv import load_dotenv
 
 if __name__ == "__main__":

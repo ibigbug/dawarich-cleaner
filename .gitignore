@@ -36,13 +36,21 @@ ENV/
 data/
 *.db
 *.sqlite
+*.sqlite3
+*.db-journal
 
 # Testing & Coverage
 .pytest_cache/
 .coverage
 htmlcov/
+coverage.xml
 *.cover
 .hypothesis/
+.tox/
+
+# Ruff & Pre-commit
+.ruff_cache/
+.pre-commit-cache/
 
 # IDE
 .vscode/
@@ -69,17 +77,15 @@ yarn-error.log*
 # Test Data & Debug Files
 *.gpx
 
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
 # Temporary Files
 *.tmp
 *.temp
 *.bak
 
-# Node (if using any JS tools)
-node_modules/
-package-lock.json
-yarn.lock
+# UV lock file (optional - comment out if you want to commit it)
+# uv.lock
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json

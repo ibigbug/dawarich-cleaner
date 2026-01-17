@@ -100,14 +100,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
     const localDate = `${year}-${month}-${day}`;
-    
+
     document.getElementById('start_date').value = localDate;
     document.getElementById('end_date').value = localDate;
-    
+
     // Auto-detect timezone
     const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const tzSelect = document.getElementById('timezone');
-    
+
     // Try to match detected timezone with dropdown options
     let matched = false;
     for (let option of tzSelect.options) {
@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', function() {
             break;
         }
     }
-    
+
     // If no exact match, add the detected timezone as an option
     if (!matched) {
         const newOption = document.createElement('option');
@@ -126,7 +126,7 @@ document.addEventListener('DOMContentLoaded', function() {
         newOption.selected = true;
         tzSelect.insertBefore(newOption, tzSelect.firstChild);
     }
-    
+
     // Update timezone display
     function updateTimezoneDisplay() {
         const selectedTz = tzSelect.value;
@@ -136,7 +136,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }).split(' ').pop();
         document.getElementById('timezone-display').textContent = `${selectedTz} (${offset})`;
     }
-    
+
     updateTimezoneDisplay();
     tzSelect.addEventListener('change', updateTimezoneDisplay);
 });
