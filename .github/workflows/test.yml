@@ -44,7 +44,7 @@ jobs:
           DAWARICH_API_KEY: test_api_key_for_ci
         run: |
           . .venv/bin/activate
-          pytest --cov --junitxml=junit.xml -o junit_family=legacy
+          pytest --cov=app --cov-report=xml --cov-report=term
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
