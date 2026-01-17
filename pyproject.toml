@@ -12,7 +12,7 @@ dependencies = [
     "aiosqlite==0.20.0",
     "asyncpg==0.30.0",
     "pytz==2024.2",
-    "jinja2==3.1.4",
+    "jinja2==3.1.6",
     "python-multipart==0.0.12",
     "apscheduler==3.10.4",
     "pydantic-settings==2.6.1",
