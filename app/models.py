@@ -1,9 +1,16 @@
 """SQLAlchemy ORM models"""
 
-from sqlalchemy import Column, Float, Index, Integer, String, Text, func
+import time
+
+from sqlalchemy import Column, Float, Index, Integer, String, Text
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
+
+
+def _current_timestamp() -> int:
+    """Return current Unix timestamp (works with both SQLite and PostgreSQL)"""
+    return int(time.time())
 
 
 class FlaggedPoint(Base):
@@ -24,7 +31,7 @@ class FlaggedPoint(Base):
     next_point_id = Column(Integer)
     stay_location_lat = Column(Float)
     stay_location_lon = Column(Float)
-    flagged_at = Column(Integer, server_default=func.strftime("%s", "now"))
+    flagged_at = Column(Integer, default=_current_timestamp)
     reviewed_at = Column(Integer)
 
     __table_args__ = (
@@ -42,7 +49,7 @@ class ScanHistory(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     start_date = Column(String, nullable=False)
     end_date = Column(String, nullable=False)
-    started_at = Column(Integer, server_default=func.strftime("%s", "now"))
+    started_at = Column(Integer, default=_current_timestamp)
     completed_at = Column(Integer)
     status = Column(String, default="running")
     points_scanned = Column(Integer, default=0)

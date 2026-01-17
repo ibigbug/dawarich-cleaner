@@ -50,7 +50,7 @@ def detect_outliers(points, max_speed_ms=50, max_distance_m=50):
         points: List of dicts with keys: id, latitude, longitude, timestamp
                 (timestamp as numeric value, int or float)
         max_speed_ms: Maximum realistic speed (m/s). Used for speed-based filtering.
-                     Default 30 m/s = 108 km/h
+                     Default 50 m/s = 180 km/h
         max_distance_m: Base distance threshold (meters) for spike detection and big jumps.
                        Can be as small as 5 meters for precise detection.
 
@@ -211,8 +211,8 @@ def detect_outliers(points, max_speed_ms=50, max_distance_m=50):
             "distance_from_prev_m": round(d_prev_cur, 1),
             "distance_to_next_m": round(d_cur_next, 1),
             "direct_route_m": round(d_prev_next, 1),
-            "time_to_point_sec": int(dt_prev) if dt_prev > 0 else int(dt_prev),
-            "time_from_point_sec": int(dt_next) if dt_next > 0 else int(dt_next),
+            "time_to_point_sec": int(dt_prev),
+            "time_from_point_sec": int(dt_next),
             "speed_to_point_ms": (round(speed_to, 1) if math.isfinite(speed_to) else None),
             "speed_from_point_ms": (round(speed_from, 1) if math.isfinite(speed_from) else None),
             "speed_direct_ms": (round(speed_direct, 1) if math.isfinite(speed_direct) else None),

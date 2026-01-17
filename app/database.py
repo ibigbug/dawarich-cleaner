@@ -1,12 +1,14 @@
 """Database module using SQLAlchemy ORM"""
 
 import json
-from datetime import datetime
+import time
+from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.sql import func
 
 from .models import Base, FlaggedPoint, ScanHistory
 
@@ -66,7 +68,7 @@ class Database:
                 "ignored": row.ignored or 0,
                 "total_flagged": row.total_flagged or 0,
                 "last_scan": (
-                    datetime.fromtimestamp(last_scan_row).strftime("%Y-%m-%d %H:%M")
+                    datetime.fromtimestamp(last_scan_row, tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
                     if last_scan_row
                     else "Never"
                 ),
@@ -110,14 +112,11 @@ class Database:
                     "latitude": point.latitude,
                     "longitude": point.longitude,
                     "timestamp": point.timestamp,
-                    "timestamp_str": datetime.fromtimestamp(point.timestamp).strftime(
-                        "%Y-%m-%d %H:%M:%S"
+                    "timestamp_str": datetime.fromtimestamp(point.timestamp, tz=UTC).strftime(
+                        "%Y-%m-%d %H:%M:%S UTC"
                     ),
                     "detection_reason": point.detection_reason,
                     "detection_details": (
-                        json.loads(point.detection_details) if point.detection_details else {}
-                    ),
-                    "detection_details_parsed": (
                         json.loads(point.detection_details) if point.detection_details else {}
                     ),
                     "confidence_score": point.confidence_score,
@@ -154,7 +153,7 @@ class Database:
                 await session.rollback()
                 return False
 
-    async def mark_as_deleted(self, point_ids: list[int]):
+    async def mark_as_deleted(self, point_ids: list[int]) -> None:
         """Mark points as deleted"""
         async with self.async_session() as session:
             stmt = (
@@ -162,7 +161,7 @@ class Database:
                 .where(FlaggedPoint.point_id.in_(point_ids))
                 .values(
                     status="deleted",
-                    reviewed_at=func.strftime("%s", "now"),
+                    reviewed_at=int(time.time()),
                 )
             )
             await session.execute(stmt)
@@ -179,7 +178,7 @@ class Database:
             await session.execute(stmt)
             await session.commit()
 
-    async def mark_as_ignored(self, point_ids: list[int]):
+    async def mark_as_ignored(self, point_ids: list[int]) -> None:
         """Mark points as ignored"""
         async with self.async_session() as session:
             stmt = (
@@ -187,7 +186,7 @@ class Database:
                 .where(FlaggedPoint.point_id.in_(point_ids))
                 .values(
                     status="ignored",
-                    reviewed_at=func.strftime("%s", "now"),
+                    reviewed_at=int(time.time()),
                 )
             )
             await session.execute(stmt)
@@ -222,7 +221,7 @@ class Database:
         points_scanned: int = 0,
         points_flagged: int = 0,
         error_message: str | None = None,
-    ):
+    ) -> None:
         """Update scan history with results"""
         async with self.async_session() as session:
             stmt = (
@@ -230,7 +229,7 @@ class Database:
                 .where(ScanHistory.id == scan_id)
                 .values(
                     status=status,
-                    completed_at=func.strftime("%s", "now"),
+                    completed_at=int(time.time()),
                     points_scanned=points_scanned,
                     points_flagged=points_flagged,
                     error_message=error_message,
