@@ -1,5 +1,5 @@
 name = "dawarich-cleaner"
-main = "src/worker.py"
+main = "src/main.py"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["python_workers"]
 
@@ -9,16 +9,8 @@ command = ""
 
 # Cron Triggers
 # Runs daily at 2 AM UTC to scan last 7 days
-[[triggers.crons]]
-cron = "0 2 * * *"
-
-# Environment Variables
-[vars]
-# DAWARICH_API_URL = "https://your-dawarich-instance.com"  # Set this or use secrets
-
-# Secrets (set with: uv run pywrangler secret put SECRET_NAME)
-# DAWARICH_API_URL - Your Dawarich instance URL
-# DAWARICH_API_KEY - Your Dawarich API key
+[triggers]
+crons = ["0 2 * * *"]
 
 # D1 Database binding
 [[d1_databases]]
@@ -26,7 +18,19 @@ binding = "DB"
 database_name = "dawarich-cleaner"
 database_id = "b474c9d0-5ba9-44fb-8f21-cec1654a5151"
 
+# Production environment
 [env.production]
 routes = [
   { pattern = "dawarich-cleaner.yba.dev/*", zone_name = "yba.dev" }
 ]
+
+# D1 Database for production
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "dawarich-cleaner"
+database_id = "b474c9d0-5ba9-44fb-8f21-cec1654a5151"
+
+# Secrets for production (set with: pywrangler secret put SECRET_NAME --env production)
+# DAWARICH_API_URL - Your Dawarich instance URL
+# DAWARICH_API_KEY - Your Dawarich API key
+# ENVIRONMENT=production
