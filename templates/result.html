@@ -52,6 +52,16 @@
         {% if details %}
         <div class="result-details">
             <dl>
+                {% if details.action %}
+                <dt>Action:</dt>
+                <dd>{{ details.action.replace('_', ' ').title() }}</dd>
+                {% endif %}
+                
+                {% if details.points_affected is defined %}
+                <dt>Points Affected:</dt>
+                <dd>{{ details.points_affected }}</dd>
+                {% endif %}
+                
                 {% if details.start_date %}
                 <dt>Start Date:</dt>
                 <dd>{{ details.start_date }}</dd>

@@ -22,23 +22,20 @@ wheels/
 env/
 venv/
 ENV/
-
-# uv
 .venv/
 .python-version
-
-# Wrangler
-.wrangler/
-.dev.vars
-.venv-workers
-wrangler.toml.local
-python_modules/
 
 # Environment & Secrets
 .env
 .env.local
+.env.dev.local
 *.secret
 *.key
+
+# Database
+data/
+*.db
+*.sqlite
 
 # Testing & Coverage
 .pytest_cache/

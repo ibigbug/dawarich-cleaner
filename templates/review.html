@@ -188,15 +188,21 @@
                                     <div>
                                         <strong>✈️ Flying Point</strong> <span style="color: #888; font-size: 0.85em;">(ID: {{ point.point_id }})</span>
                                     </div>
+                                    {% if details.get('distance_from_prev_m') is not none %}
                                     <div style="font-size: 0.9em; color: #666;">
-                                        From prev: {{ "%.2f"|format(details.distance_from_prev_km) }} km @ {{ "%.0f"|format(details.speed_to_point_kmh or 0) }} km/h
+                                        From prev: {{ "%.1f"|format(details.get('distance_from_prev_m', 0)) }} m @ {{ "%.1f"|format(details.get('speed_to_point_ms', 0) or 0) }} m/s
                                         <br>
-                                        To next: {{ "%.2f"|format(details.distance_to_next_km) }} km @ {{ "%.0f"|format(details.speed_from_point_kmh or 0) }} km/h
+                                        To next: {{ "%.1f"|format(details.get('distance_to_next_m', 0)) }} m @ {{ "%.1f"|format(details.get('speed_from_point_ms', 0) or 0) }} m/s
                                         <br>
-                                        <strong>Direct route: {{ "%.2f"|format(details.direct_route_km) }} km @ {{ "%.0f"|format(details.speed_direct_kmh or 0) }} km/h</strong>
+                                        <strong>Direct route: {{ "%.1f"|format(details.get('direct_route_m', 0)) }} m @ {{ "%.1f"|format(details.get('speed_direct_ms', 0) or 0) }} m/s</strong>
                                         <br>
-                                        (Point jumped {{ "%.2f"|format(details.distance_from_prev_km + details.distance_to_next_km - details.direct_route_km) }} km off route)
+                                        (Point jumped {{ "%.1f"|format(details.get('distance_from_prev_m', 0) + details.get('distance_to_next_m', 0) - details.get('direct_route_m', 0)) }} m off route)
                                     </div>
+                                    {% else %}
+                                    <div style="font-size: 0.9em; color: #999; font-style: italic;">
+                                        Detection details not available - please re-scan to regenerate
+                                    </div>
+                                    {% endif %}
                                 {% else %}
                                     <div>
                                         <strong>⚠️ {{ point.detection_reason.replace('_', ' ').title() }}</strong> <span style="color: #888; font-size: 0.85em;">(ID: {{ point.point_id }})</span>
@@ -216,7 +222,7 @@
                                    target="_blank"
                                    class="btn-link">Google</a>
                                 <span style="margin: 0 5px;">|</span>
-                                <a href="{{ request.scope.env.DAWARICH_API_URL }}/map/v2?start_at={{ point.timestamp_url_start|urlencode }}&end_at={{ point.timestamp_url_end|urlencode }}"
+                                <a href="{{ dawarich_api_url }}/map/v2?start_at={{ point.timestamp_url_start|urlencode }}&end_at={{ point.timestamp_url_end|urlencode }}"
                                    target="_blank"
                                    class="btn-link">Dawarich</a>
                             </td>
