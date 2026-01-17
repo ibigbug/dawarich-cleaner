@@ -1,10 +1,10 @@
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 
-# Install system dependencies for PostgreSQL
+# Install system dependencies for PostgreSQL and building Python packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq-dev gcc \
+    libpq-dev gcc python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv
