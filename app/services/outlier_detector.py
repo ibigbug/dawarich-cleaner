@@ -42,7 +42,7 @@ def calculate_speed(point1, point2):
     return distance_m / dt_sec
 
 
-def detect_outliers(points, max_speed_ms=30, max_distance_m=500):
+def detect_outliers(points, max_speed_ms=50, max_distance_m=50):
     """
     Detect outlier GPS points.
 

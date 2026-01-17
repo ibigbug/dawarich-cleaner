@@ -128,8 +128,8 @@ class AutoScanScheduler:
 
             logger.info(f"📊 Auto-scan: Analyzing {len(points)} points")
 
-            # Use default thresholds: 30 m/s (108 km/h), 500m distance
-            outliers = detect_outliers(points, max_speed_ms=30, max_distance_m=500)
+            # Use default thresholds: 50 m/s (180 km/h), 50m distance
+            outliers = detect_outliers(points, max_speed_ms=50, max_distance_m=50)
 
             logger.info(f"🚩 Auto-scan: Found {len(outliers)} potential outliers")
 
