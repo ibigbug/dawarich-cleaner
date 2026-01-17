@@ -127,8 +127,8 @@ def test_detect_outliers_confidence_score():
         assert 0 <= outlier["confidence_score"] <= 1.0
 
 
-def test_detect_outliers_spike_pattern():
-    """Test jump outlier detection (point jumps away and back - spike pattern)"""
+def test_detect_outliers_jump_outlier():
+    """Test detection of jump outlier (point jumps away and back, creating a spike pattern)"""
     points = [
         {"id": 1, "latitude": 0.0, "longitude": 0.0, "timestamp": 1000},
         {"id": 2, "latitude": 1.0, "longitude": 0.0, "timestamp": 1010},  # Jump away
@@ -136,7 +136,7 @@ def test_detect_outliers_spike_pattern():
     ]
 
     outliers = detect_outliers(points, max_speed_ms=30)
-    # Should detect the spike pattern (may be classified as speed or jump outlier)
+    # Should detect the jump outlier (may be classified as speed or jump outlier)
     assert len(outliers) >= 1
     # The middle point should be detected as outlier
     assert any(o["point_id"] == 2 for o in outliers)
