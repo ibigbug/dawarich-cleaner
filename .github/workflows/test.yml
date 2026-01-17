@@ -44,7 +44,7 @@ jobs:
           DAWARICH_API_KEY: test_api_key_for_ci
         run: |
           . .venv/bin/activate
-          pytest --cov=app --cov-report=xml --cov-report=term
+          pytest --cov=app --cov-report=xml --cov-report=term --junitxml=junit.xml
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
@@ -69,4 +69,5 @@ jobs:
           name: coverage-report
           path: |
             coverage.xml
+            junit.xml
             htmlcov/
