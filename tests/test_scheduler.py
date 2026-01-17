@@ -58,13 +58,12 @@ async def test_scheduler_detects_stuck_scan(mock_db):
         return_value={"id": 1, "status": "running", "started_at": old_timestamp}
     )
 
-    # After marking as failed, it will try to scan, so mock small time range to skip
+    # Mock last completed to be far in future to make time range small
+    future_date = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
     mock_db.get_last_completed_scan = AsyncMock(
         return_value={
             "id": 2,
-            "end_date": datetime.now().strftime(
-                "%Y-%m-%d"
-            ),  # Today - will skip (time range too small)
+            "end_date": future_date,
             "completed_at": datetime.now().timestamp(),
         }
     )
@@ -77,6 +76,8 @@ async def test_scheduler_detects_stuck_scan(mock_db):
     call_args = mock_db.update_scan_history.call_args
     assert call_args[0][0] == 1  # scan_id
     assert call_args[1]["status"] == "failed"
+    # Should not try to create a new scan (time range too small)
+    mock_db.create_scan_history.assert_not_called()
 
 
 @pytest.mark.asyncio
