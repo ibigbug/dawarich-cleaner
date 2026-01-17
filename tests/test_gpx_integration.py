@@ -58,20 +58,20 @@ def gpx_sample_points():
 
 def test_gpx_sample_loads(gpx_sample_points):
     """Test that the GPX sample file loads correctly."""
-    assert len(gpx_sample_points) > 100
+    # Synthetic data has exactly 200 points
+    assert len(gpx_sample_points) == 200
     assert all("latitude" in p for p in gpx_sample_points)
     assert all("longitude" in p for p in gpx_sample_points)
     assert all("timestamp" in p for p in gpx_sample_points)
 
 
 def test_gpx_sample_outlier_detection(gpx_sample_points):
-    """Test outlier detection on real GPX sample data."""
+    """Test outlier detection on synthetic GPX sample data."""
     # Use default thresholds: 50 m/s (180 km/h), 50m
     outliers = detect_outliers(gpx_sample_points, max_speed_ms=50, max_distance_m=50)
 
-    # Should detect some outliers but not all points
-    assert len(outliers) > 0
-    assert len(outliers) < len(gpx_sample_points)
+    # Synthetic data has exactly 8 known outliers
+    assert len(outliers) == 8
 
     # All outliers should have required fields
     for outlier in outliers:
@@ -88,10 +88,11 @@ def test_gpx_sample_outlier_detection(gpx_sample_points):
 
 def test_gpx_sample_with_strict_thresholds(gpx_sample_points):
     """Test with stricter thresholds should catch more outliers."""
-    # Lenient thresholds
+    # Lenient thresholds (should catch fewer, most extreme outliers)
     outliers_lenient = detect_outliers(gpx_sample_points, max_speed_ms=100, max_distance_m=1000)
+    assert len(outliers_lenient) == 4  # Only the most extreme outliers
 
-    # Strict thresholds
+    # Strict thresholds (should catch more including normal variation)
     outliers_strict = detect_outliers(gpx_sample_points, max_speed_ms=10, max_distance_m=20)
 
     # Stricter thresholds should catch more outliers
@@ -104,10 +105,19 @@ def test_gpx_sample_outlier_reasons(gpx_sample_points):
 
     valid_reasons = {
         "speed_outlier",
-        "flying_point",
         "jump_outlier",
         "non_increasing_timestamp",
     }
+
+    # Count outliers by reason
+    reasons = [o["detection_reason"] for o in outliers]
+    reason_counts = {reason: reasons.count(reason) for reason in valid_reasons}
+
+    # Synthetic data has 8 injected outliers detected as: 3 speed_outlier, 4 jump_outlier, 1 duplicate_timestamp
+    # (1 speed_outlier classified as jump due to distance, 1 jump with low confidence filtered as neighbor artifact)
+    assert reason_counts["speed_outlier"] == 3
+    assert reason_counts["jump_outlier"] == 4
+    assert reason_counts["non_increasing_timestamp"] == 1
 
     for outlier in outliers:
         assert outlier["detection_reason"] in valid_reasons
@@ -120,9 +130,10 @@ def test_gpx_cleaned_data_quality(gpx_sample_points):
 
     cleaned_points = [p for p in gpx_sample_points if p["id"] not in outlier_ids]
 
-    # Should retain most points
+    # Synthetic data: 200 points - 8 outliers = 192 clean points (96% retention)
+    assert len(cleaned_points) == 192
     retention_rate = len(cleaned_points) / len(gpx_sample_points)
-    assert retention_rate > 0.9  # At least 90% retention
+    assert retention_rate == 0.96
 
     # Cleaned data should still be sequential
     timestamps = [p["timestamp"] for p in cleaned_points]

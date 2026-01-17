@@ -1,7 +1,7 @@
 """
 Outlier detection algorithms for GPS points
 - Detects unrealistic speeds
-- Detects "spike / flying point" pattern (jump away then back)
+- Detects large distance jumps
 - Detects stale/out-of-order timestamps
 API:
     detect_outliers(points, max_speed_ms=41.67, max_distance_m=500)
@@ -159,19 +159,21 @@ def detect_outliers(points, max_speed_ms=50, max_distance_m=50):
             speed_from > max_speed_ms * speed_tol
         )
 
-        # B) Short-window big jump: very large distance in a very small dt
-        jump_flag = (dt_prev > 0 and dt_prev < max_jump_dt_sec and d_prev_cur > max_jump_m) or (
-            dt_next > 0 and dt_next < max_jump_dt_sec and d_cur_next > max_jump_m
+        # B) Distance jump: large distance from neighbors
+        # This includes both:
+        #   - Short-window big jumps (large distance in small time)
+        #   - Spike patterns (far from both neighbors, but neighbors close to each other)
+        jump_flag = (
+            (dt_prev > 0 and dt_prev < max_jump_dt_sec and d_prev_cur > max_jump_m)
+            or (dt_next > 0 and dt_next < max_jump_dt_sec and d_cur_next > max_jump_m)
+            or (
+                d_prev_cur > spike_far_m
+                and d_cur_next > spike_far_m
+                and d_prev_next < spike_neighbor_close_m
+            )
         )
 
-        # C) Spike (flying point): far from both neighbors, but neighbors are close to each other
-        spike_flag = (
-            d_prev_cur > spike_far_m
-            and d_cur_next > spike_far_m
-            and d_prev_next < spike_neighbor_close_m
-        )
-
-        if not (speed_flag or jump_flag or spike_flag):
+        if not (speed_flag or jump_flag):
             continue
 
         # Build confidence (0..1)
@@ -193,20 +195,17 @@ def detect_outliers(points, max_speed_ms=50, max_distance_m=50):
                 1.0, max(0.0, (max_req_speed - max_speed_ms) / max(max_speed_ms, 1.0))
             )
 
-        # Weighted confidence: spike pattern is usually very strong signal
+        # Weighted confidence
         confidence = 0.25 * distance_factor + 0.35 * detour_factor + 0.40 * speed_factor
-        if spike_flag:
-            confidence = max(confidence, 0.85)  # spike is very diagnostic
+
+        # High confidence for extreme cases
+        if jump_flag and detour_factor > 0.8:  # spike pattern (far from neighbors, neighbors close)
+            confidence = max(confidence, 0.85)
         if jump_flag and max_req_speed > max_speed_ms * 2:
             confidence = max(confidence, 0.9)
 
-        # Pick a reason string (single label) but include all signals in details
-        if spike_flag:
-            reason = "flying_point"
-        elif speed_flag:
-            reason = "speed_outlier"
-        else:
-            reason = "jump_outlier"
+        # Pick a reason string (single label)
+        reason = "speed_outlier" if speed_flag else "jump_outlier"
 
         details = {
             "distance_from_prev_m": round(d_prev_cur, 1),
@@ -225,7 +224,6 @@ def detect_outliers(points, max_speed_ms=50, max_distance_m=50):
             "signals": {
                 "speed_flag": bool(speed_flag),
                 "jump_flag": bool(jump_flag),
-                "spike_flag": bool(spike_flag),
             },
             "confidence_breakdown": {
                 "distance_factor": round(distance_factor, 2),
@@ -236,4 +234,55 @@ def detect_outliers(points, max_speed_ms=50, max_distance_m=50):
 
         add_outlier(cur, prev, nxt, reason, details, confidence)
 
-    return outliers
+    # Pass 3: Filter out weaker duplicate detections caused by neighbors of strong outliers
+    # Sort outliers by confidence (strongest first)
+    outliers.sort(key=lambda x: x["confidence_score"], reverse=True)
+
+    filtered_outliers = []
+    outlier_ids = set()
+    neighbor_of_outlier_ids = set()
+
+    for outlier in outliers:
+        point_id = outlier["point_id"]
+
+        # Skip if already added
+        if point_id in outlier_ids:
+            continue
+
+        # Skip if this is marked as a neighbor artifact
+        if point_id in neighbor_of_outlier_ids:
+            continue
+
+        prev_id = outlier["previous_point_id"]
+        next_id = outlier["next_point_id"]
+
+        # Check if this is a weaker detection adjacent to a stronger one already added
+        is_neighbor_artifact = False
+
+        # For any outlier, check if it's adjacent to another outlier of same type
+        for other in filtered_outliers:
+            other_id = other["point_id"]
+            # If this point is adjacent to another outlier with same type and lower/equal confidence
+            if (
+                other_id in (prev_id, next_id)
+                and outlier["detection_reason"] == other["detection_reason"]
+                and outlier["confidence_score"] <= other["confidence_score"] + 0.05
+            ):
+                is_neighbor_artifact = True
+                break
+
+        if not is_neighbor_artifact:
+            filtered_outliers.append(outlier)
+            outlier_ids.add(point_id)
+
+            # Mark neighbors as potential artifacts if this is a strong outlier
+            if outlier["confidence_score"] >= 0.85:
+                if prev_id:
+                    neighbor_of_outlier_ids.add(prev_id)
+                if next_id:
+                    neighbor_of_outlier_ids.add(next_id)
+
+    # Restore original order (by point_id)
+    filtered_outliers.sort(key=lambda x: x["point_id"])
+
+    return filtered_outliers
