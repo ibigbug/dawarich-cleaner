@@ -1,15 +1,15 @@
 """Review and action routes"""
 
-from fastapi import APIRouter, Request, Form, HTTPException
+import logging
+from pathlib import Path
+
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from pathlib import Path
-from typing import List
-import logging
 
+from ..config import get_settings
 from ..database import Database
 from ..services import DawarichService
-from ..config import get_settings
 
 router = APIRouter()
 template_dir = Path(__file__).parent.parent.parent / "templates"
@@ -50,7 +50,7 @@ async def review(
 
 
 @router.post("/action/{action}", response_class=HTMLResponse)
-async def action(request: Request, action: str, point_ids: List[str] = Form(...)):
+async def action(request: Request, action: str, point_ids: list[str] = Form(...)):
     """Perform bulk action on flagged points"""
     settings = get_settings()
     db: Database = request.app.state.db
@@ -61,7 +61,7 @@ async def action(request: Request, action: str, point_ids: List[str] = Form(...)
         if not db_ids:
             raise ValueError("No point IDs provided")
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid point IDs: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid point IDs: {str(e)}") from e
 
     # Get the actual Dawarich point_ids from database IDs
     flagged_points = await db.get_flagged_points(status="all")
@@ -80,14 +80,10 @@ async def action(request: Request, action: str, point_ids: List[str] = Form(...)
             logger.info(f"Deleting {len(dawarich_point_ids)} points from Dawarich")
             await dawarich.delete_points(dawarich_point_ids)
             await db.mark_as_deleted(dawarich_point_ids)
-            message = (
-                f"Successfully deleted {len(dawarich_point_ids)} points from Dawarich"
-            )
+            message = f"Successfully deleted {len(dawarich_point_ids)} points from Dawarich"
 
         elif action == "restore":
-            logger.info(
-                f"Restoring {len(dawarich_point_ids)} points by re-importing to Dawarich"
-            )
+            logger.info(f"Restoring {len(dawarich_point_ids)} points by re-importing to Dawarich")
 
             # Get point data from flagged_points
             points_to_restore = [
@@ -101,12 +97,10 @@ async def action(request: Request, action: str, point_ids: List[str] = Form(...)
             ]
 
             if not points_to_restore:
-                raise HTTPException(
-                    status_code=400, detail="No point data found to restore"
-                )
+                raise HTTPException(status_code=400, detail="No point data found to restore")
 
             # Re-import points to Dawarich via POST API (creates new points with new IDs)
-            result = await dawarich.reimport_points(points_to_restore)
+            await dawarich.reimport_points(points_to_restore)
 
             # Remove old flagged records since restored points have new IDs now
             # They would need to be re-scanned if they're still outliers
@@ -122,9 +116,7 @@ async def action(request: Request, action: str, point_ids: List[str] = Form(...)
         elif action == "remove":
             logger.info(f"Removing {len(dawarich_point_ids)} points from database")
             await db.remove_flagged_points(dawarich_point_ids)
-            message = (
-                f"Successfully removed {len(dawarich_point_ids)} points from database"
-            )
+            message = f"Successfully removed {len(dawarich_point_ids)} points from database"
 
         else:
             raise HTTPException(status_code=400, detail=f"Unknown action: {action}")

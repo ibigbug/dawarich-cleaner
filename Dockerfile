@@ -2,8 +2,13 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# Install system dependencies for PostgreSQL
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq-dev gcc \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install uv
-RUN pip install uv
+RUN pip install --no-cache-dir uv
 
 # Copy project files needed for installation
 COPY pyproject.toml README.md ./

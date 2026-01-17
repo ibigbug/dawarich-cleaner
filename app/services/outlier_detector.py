@@ -20,10 +20,7 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
 
-    a = (
-        math.sin(dlat / 2) ** 2
-        + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2) ** 2
-    )
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2) ** 2
     c = 2 * math.asin(math.sqrt(a))
     return R * c
 
@@ -163,9 +160,9 @@ def detect_outliers(points, max_speed_ms=30, max_distance_m=500):
         )
 
         # B) Short-window big jump: very large distance in a very small dt
-        jump_flag = (
-            dt_prev > 0 and dt_prev < max_jump_dt_sec and d_prev_cur > max_jump_m
-        ) or (dt_next > 0 and dt_next < max_jump_dt_sec and d_cur_next > max_jump_m)
+        jump_flag = (dt_prev > 0 and dt_prev < max_jump_dt_sec and d_prev_cur > max_jump_m) or (
+            dt_next > 0 and dt_next < max_jump_dt_sec and d_cur_next > max_jump_m
+        )
 
         # C) Spike (flying point): far from both neighbors, but neighbors are close to each other
         spike_flag = (
@@ -217,15 +214,9 @@ def detect_outliers(points, max_speed_ms=30, max_distance_m=500):
             "direct_route_m": round(d_prev_next, 1),
             "time_to_point_sec": int(dt_prev) if dt_prev > 0 else int(dt_prev),
             "time_from_point_sec": int(dt_next) if dt_next > 0 else int(dt_next),
-            "speed_to_point_ms": (
-                round(speed_to, 1) if math.isfinite(speed_to) else None
-            ),
-            "speed_from_point_ms": (
-                round(speed_from, 1) if math.isfinite(speed_from) else None
-            ),
-            "speed_direct_ms": (
-                round(speed_direct, 1) if math.isfinite(speed_direct) else None
-            ),
+            "speed_to_point_ms": (round(speed_to, 1) if math.isfinite(speed_to) else None),
+            "speed_from_point_ms": (round(speed_from, 1) if math.isfinite(speed_from) else None),
+            "speed_direct_ms": (round(speed_direct, 1) if math.isfinite(speed_direct) else None),
             "thresholds": {
                 "max_speed_ms": max_speed_ms,
                 "max_distance_m": max_distance_m,

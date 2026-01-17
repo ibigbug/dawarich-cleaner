@@ -1,119 +1,141 @@
-# Dawarich Cleaner - Self-Hosted
+# Dawarich Cleaner
 
-A FastAPI application to detect and clean outlier GPS points from your Dawarich instance.
+Automated GPS outlier detection and cleaning for your Dawarich instance.
 
 ## Features
 
-- 🔍 **Smart Detection**: Identifies flying points, unrealistic speeds, and GPS anomalies
-- 🎯 **Confidence Scoring**: Multi-factor analysis with confidence scores
+- 🔍 **Smart Detection**: Flying points, unrealistic speeds, and GPS anomalies
+- 🎯 **Confidence Scoring**: Multi-factor analysis with confidence ratings
 - 🗺️ **Interactive Review**: Web UI to review and manage flagged points
-- 🤖 **Auto-Scan**: Background scheduler runs every 10 minutes automatically
-- 🐳 **Docker Ready**: Easy deployment with Docker and docker-compose
-- 🏗️ **Clean Architecture**: FastAPI best practices with modular structure
+- 🤖 **Auto-Scan**: Background scheduler runs every 10 minutes
+- 🐳 **Docker Ready**: One-command deployment with Docker
+- 💾 **SQLite or PostgreSQL**: Flexible database options
 
 ## Quick Start
 
-### Option 1: Using uv (recommended - faster)
+### Using Docker (Recommended)
 
 ```bash
-# Install uv if you haven't already
+docker run -d \
+  -p 8000:8000 \
+  -e DAWARICH_API_URL=https://your-dawarich.com \
+  -e DAWARICH_API_KEY=your_api_key \
+  -v dawarich-cleaner-data:/app/data \
+  ghcr.io/yourusername/dawarich-cleaner:latest
+```
+
+Access at: http://localhost:8000
+
+### Using Docker Compose
+
+```yaml
+version: '3.8'
+services:
+  dawarich-cleaner:
+    image: ghcr.io/yourusername/dawarich-cleaner:latest
+    ports:
+      - "8000:8000"
+    environment:
+      DAWARICH_API_URL: https://your-dawarich.com
+      DAWARICH_API_KEY: your_api_key
+      DATABASE_URL: sqlite+aiosqlite:///./data/cleaner.db
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+```
+
+### Local Development
+
+```bash
+# Install uv
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Create virtual environment and install dependencies
-uv venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-uv pip install .
+# Install dependencies
+uv venv && source .venv/bin/activate
+uv pip install -e ".[dev]"
 
-# Configure environment
+# Configure
 cp .env.example .env
-# Edit .env with your Dawarich URL and API key
+# Edit .env with your settings
 
-# Run the application
-uvicorn asgi:application
+# Install pre-commit hooks
+pre-commit install
+
+# Run
+uvicorn app.main:app --reload
 ```
 
-### Option 2: Using standard Python venv
+### Code Quality
 
 ```bash
-# Create virtual environment
-python -m venv .venv
+# Run all pre-commit checks
+pre-commit run --all-files
 
-# Activate virtual environment
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+# Run tests
+pytest
 
-# Install project and dependencies
-pip install .
+# Run tests with coverage
+pytest --cov=app --cov-report=html
+# Open htmlcov/index.html to view coverage report
 
-# Configure environment
-cp .env.example .env
-# Edit .env with your Dawarich URL and API key
-
-# Run the application
-uvicorn asgi:application
+# Individual tools
+ruff check --fix .        # Lint and auto-fix
+ruff format .             # Format code
 ```
 
-### Option 3: Using Docker
+## CI/CD
 
-```bash
-# Configure environment
-cp .env.example .env
-# Edit .env with your Dawarich URL and API key
+The project includes GitHub Actions workflows:
 
-# Start with docker-compose
-docker-compose up -d
-
-# Access the app at http://localhost:8000
-```
+- **Pre-commit Checks**: Runs on all PRs and pushes to main
+- **Tests & Coverage**: Runs tests and uploads coverage to Codecov
+- **Docker Build**: Builds and publishes Docker images to GHCR
 
 ## Configuration
 
-`.env` file:
-```env
-DATABASE_URL=sqlite+aiosqlite:///./data/dawarich-cleaner.db
-# Or use PostgreSQL:
-# DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/dbname
+### Environment Variables
 
-DAWARICH_API_URL=https://your-dawarich-instance.com
-DAWARICH_API_KEY=your_api_key_here
+| Variable | Description | Default |
+|----------|-------------|----------|
+| `DAWARICH_API_URL` | Your Dawarich instance URL | Required |
+| `DAWARICH_API_KEY` | Dawarich API key | Required |
+| `DATABASE_URL` | Database connection string | `sqlite+aiosqlite:///./data/cleaner.db` |
+
+### Database Options
+
+**SQLite (default):**
+```bash
+DATABASE_URL=sqlite+aiosqlite:///./data/cleaner.db
 ```
 
-## Usage
-
-1. **Scan for Outliers**: Select date range, timezone, and detection thresholds
-2. **Review Flagged Points**: View detected outliers with confidence scores
-3. **Take Actions**: Delete, ignore, or restore flagged points
-4. **Auto-Scan**: App automatically scans every 10 minutes for new outliers (runs in background)
-
-## Detection Algorithms
-
-- **Flying Points**: Sudden jumps away and back
-- **Speed Violations**: Exceeds realistic speeds
-- **Spike Detection**: Points far from trajectory
-- **Timestamp Issues**: Duplicates or out-of-order
-
-## API Endpoints
-
-- `GET /` - Dashboard
-- `POST /scan` - Run scan
-- `GET /review` - Review points
-- `POST /action/{action}` - Bulk actions
-- `GET /health` - Health check (includes auto-scan status)
-
-## Development
-Activate your virtual environment first
-source .venv/bin/activate
-
-# Run with auto-reload
-uvicorn asgi:application --reload
-
-# Run on different port
-uvicorn asgi:application --reload --port 3000
-
-# Run with different host
-uvicorn asgi:application --reload --host 127.0.0.1
-# Or use uvicorn directly
-uvicorn app.main:app --reload
+**PostgreSQL:**
+```bash
+DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/dawarich_cleaner
 ```
+
+## How It Works
+
+1. **Manual Scan**: Select date range and thresholds via web UI
+2. **Auto-Scan**: Runs every 10 minutes automatically (scans last 24h on first run, then incremental)
+3. **Review**: Check flagged points with detection reasons and confidence scores
+4. **Action**: Delete, ignore, or restore points in bulk
+
+### Detection Methods
+
+- **Flying Points**: Sudden jumps away from trajectory and back
+- **Speed Violations**: Movement exceeding 30 m/s (108 km/h) default
+- **Distance Spikes**: Points > 500m from expected trajectory
+- **Timestamp Issues**: Duplicate or out-of-order timestamps
+
+## API
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Dashboard and scan form |
+| `/scan` | POST | Trigger manual scan |
+| `/review` | GET | Review flagged points |
+| `/action/{action}` | POST | Bulk actions (delete/ignore/restore) |
+| `/health` | GET | Health check with auto-scan status |
 
 ## License
 

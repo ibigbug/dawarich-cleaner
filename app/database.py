@@ -2,10 +2,11 @@
 
 import json
 from datetime import datetime
-from typing import List, Dict, Any, Optional
-from sqlalchemy import select, update, delete, func
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from typing import Any
+
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from .models import Base, FlaggedPoint, ScanHistory
 
@@ -35,7 +36,7 @@ class Database:
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
-    async def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> dict[str, Any]:
         """Get dashboard statistics"""
         async with self.async_session() as session:
             # Count by status
@@ -73,12 +74,10 @@ class Database:
 
     async def get_flagged_points(
         self, status: str = "pending", min_confidence: float = 0.0
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get flagged points by status and confidence threshold"""
         async with self.async_session() as session:
-            stmt = select(FlaggedPoint).where(
-                FlaggedPoint.confidence_score >= min_confidence
-            )
+            stmt = select(FlaggedPoint).where(FlaggedPoint.confidence_score >= min_confidence)
 
             # Add status filter only if not 'all'
             if status and status != "all":
@@ -104,14 +103,10 @@ class Database:
                     ),
                     "detection_reason": point.detection_reason,
                     "detection_details": (
-                        json.loads(point.detection_details)
-                        if point.detection_details
-                        else {}
+                        json.loads(point.detection_details) if point.detection_details else {}
                     ),
                     "detection_details_parsed": (
-                        json.loads(point.detection_details)
-                        if point.detection_details
-                        else {}
+                        json.loads(point.detection_details) if point.detection_details else {}
                     ),
                     "confidence_score": point.confidence_score,
                     "status": point.status,
@@ -125,7 +120,7 @@ class Database:
                 for point in points
             ]
 
-    async def save_flagged_point(self, point: Dict[str, Any]) -> bool:
+    async def save_flagged_point(self, point: dict[str, Any]) -> bool:
         """Save a flagged point. Returns True if new, False if duplicate"""
         async with self.async_session() as session:
             try:
@@ -147,7 +142,7 @@ class Database:
                 await session.rollback()
                 return False
 
-    async def mark_as_deleted(self, point_ids: List[int]):
+    async def mark_as_deleted(self, point_ids: list[int]):
         """Mark points as deleted"""
         async with self.async_session() as session:
             stmt = (
@@ -161,7 +156,7 @@ class Database:
             await session.execute(stmt)
             await session.commit()
 
-    async def mark_as_restored(self, point_ids: List[int]):
+    async def mark_as_restored(self, point_ids: list[int]):
         """Mark points as restored"""
         async with self.async_session() as session:
             stmt = (
@@ -172,7 +167,7 @@ class Database:
             await session.execute(stmt)
             await session.commit()
 
-    async def mark_as_ignored(self, point_ids: List[int]):
+    async def mark_as_ignored(self, point_ids: list[int]):
         """Mark points as ignored"""
         async with self.async_session() as session:
             stmt = (
@@ -186,7 +181,7 @@ class Database:
             await session.execute(stmt)
             await session.commit()
 
-    async def remove_flagged_points(self, point_ids: List[int]):
+    async def remove_flagged_points(self, point_ids: list[int]):
         """Permanently remove flagged points from database"""
         async with self.async_session() as session:
             stmt = delete(FlaggedPoint).where(FlaggedPoint.point_id.in_(point_ids))
@@ -214,7 +209,7 @@ class Database:
         status: str,
         points_scanned: int = 0,
         points_flagged: int = 0,
-        error_message: Optional[str] = None,
+        error_message: str | None = None,
     ):
         """Update scan history with results"""
         async with self.async_session() as session:
@@ -232,7 +227,7 @@ class Database:
             await session.execute(stmt)
             await session.commit()
 
-    async def get_last_scan(self) -> Optional[Dict[str, Any]]:
+    async def get_last_scan(self) -> dict[str, Any] | None:
         """Get the most recent scan (any status)"""
         async with self.async_session() as session:
             stmt = select(ScanHistory).order_by(ScanHistory.started_at.desc()).limit(1)
@@ -250,7 +245,7 @@ class Database:
                 "end_date": scan.end_date,
             }
 
-    async def get_last_completed_scan(self) -> Optional[Dict[str, Any]]:
+    async def get_last_completed_scan(self) -> dict[str, Any] | None:
         """Get the most recent completed scan"""
         async with self.async_session() as session:
             stmt = (
