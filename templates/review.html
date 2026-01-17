@@ -184,9 +184,9 @@
                                 </td>
                             {% endif %}
                             <td>
-                                {% if point.detection_reason == 'flying_point' %}
+                                {% if point.detection_reason == 'jump_outlier' %}
                                     <div>
-                                        <strong>✈️ Flying Point</strong> <span style="color: #888; font-size: 0.85em;">(ID: {{ point.point_id }})</span>
+                                        <strong>📍 Jump Outlier</strong> <span style="color: #888; font-size: 0.85em;">(ID: {{ point.point_id }})</span>
                                     </div>
                                     {% if details.get('distance_from_prev_m') is not none %}
                                     <div style="font-size: 0.9em; color: #666;">
