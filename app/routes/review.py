@@ -86,6 +86,66 @@ async def action(request: Request, action: str, point_ids: list[str] = Form(...)
             logger.info(f"Deleting {len(dawarich_point_ids)} points from Dawarich")
             await dawarich.delete_points(dawarich_point_ids)
             await db.mark_as_deleted(dawarich_point_ids)
+
+            # Best-effort track recalculation:
+            # Dawarich currently does not enqueue Tracks::RecalculateJob for bulk_destroy,
+            # which can leave stale track geometries ("fly lines") behind.
+            #
+            # There's no official "recalculate track" API endpoint, but Dawarich *does*
+            # enqueue a recalculation when a point with track_id is updated via PATCH.
+            #
+            # Strategy:
+            # - For each deleted point, use neighbor points (prev/next) recorded by the detector
+            #   to find a likely in-range point id.
+            # - Fetch those points from Dawarich and pick one that still exists.
+            # - Nudge it by PATCHing the same lat/lon (no-op update) to trigger recalc.
+            try:
+                flagged_rows = await db.get_flagged_points_by_point_ids(
+                    [int(pid) for pid in dawarich_point_ids]
+                )
+                fp_by_id = {int(p["point_id"]): p for p in flagged_rows}
+
+                # Collect candidate neighbor point ids (these should still exist)
+                neighbor_ids: set[int] = set()
+                for pid in dawarich_point_ids:
+                    meta = fp_by_id.get(int(pid))
+                    if not meta:
+                        continue
+                    if meta.get("previous_point_id"):
+                        neighbor_ids.add(int(meta["previous_point_id"]))
+                    if meta.get("next_point_id"):
+                        neighbor_ids.add(int(meta["next_point_id"]))
+
+                # If we don't have neighbors, we can't easily trigger recalc
+                if neighbor_ids:
+                    # Fetch neighbor points (API returns either anomalies or non-anomalies;
+                    # the neighbor is usually non-anomaly, but we fetch both and merge).
+                    # Use a generous range around the deleted points based on their timestamps.
+                    ts_vals = [int(fp_by_id[int(pid)]["timestamp"]) for pid in dawarich_point_ids if int(pid) in fp_by_id]
+                    if ts_vals:
+                        start_ts = min(ts_vals) - 7200
+                        end_ts = max(ts_vals) + 7200
+                        points = await dawarich.fetch_points_range_all(start_ts, end_ts)
+                        points_by_id = {int(p.get("id")): p for p in points if p.get("id") is not None}
+
+                        nudged = 0
+                        for nid in list(neighbor_ids)[:25]:
+                            p = points_by_id.get(int(nid))
+                            if not p:
+                                continue
+                            try:
+                                lat = float(p.get("latitude"))
+                                lon = float(p.get("longitude"))
+                            except Exception:
+                                continue
+                            await dawarich.update_point_location(int(nid), lat, lon)
+                            nudged += 1
+
+                        if nudged:
+                            logger.info(f"Triggered track recalculation by nudging {nudged} neighbor points")
+            except Exception as e:
+                logger.warning(f"Track recalculation best-effort failed: {e}")
+
             message = f"Successfully deleted {len(dawarich_point_ids)} points from Dawarich"
 
         elif action == "restore":

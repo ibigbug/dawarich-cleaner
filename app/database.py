@@ -81,7 +81,7 @@ class Database:
         sort_by: str = "timestamp",
         sort_dir: str = "desc",
     ) -> list[dict[str, Any]]:
-        """Get flagged points by status and confidence threshold"""
+        """Get flagged points by status and confidence threshold."""
         async with self.async_session() as session:
             stmt = select(FlaggedPoint).where(FlaggedPoint.confidence_score >= min_confidence)
 
@@ -131,8 +131,39 @@ class Database:
                 for point in points
             ]
 
+    async def get_flagged_points_by_point_ids(
+        self, point_ids: list[int]
+    ) -> list[dict[str, Any]]:
+        """Fetch flagged points for a specific set of Dawarich point IDs."""
+        if not point_ids:
+            return []
+
+        async with self.async_session() as session:
+            stmt = select(FlaggedPoint).where(FlaggedPoint.point_id.in_(point_ids))
+            result = await session.execute(stmt)
+            points = result.scalars().all()
+
+            return [
+                {
+                    "id": point.id,
+                    "point_id": point.point_id,
+                    "latitude": point.latitude,
+                    "longitude": point.longitude,
+                    "timestamp": point.timestamp,
+                    "detection_reason": point.detection_reason,
+                    "detection_details": (
+                        json.loads(point.detection_details) if point.detection_details else {}
+                    ),
+                    "confidence_score": point.confidence_score,
+                    "status": point.status,
+                    "previous_point_id": point.previous_point_id,
+                    "next_point_id": point.next_point_id,
+                }
+                for point in points
+            ]
+
     async def save_flagged_point(self, point: dict[str, Any]) -> bool:
-        """Save a flagged point. Returns True if new, False if duplicate"""
+        """Save a flagged point. Returns True if new, False if duplicate."""
         async with self.async_session() as session:
             try:
                 flagged_point = FlaggedPoint(

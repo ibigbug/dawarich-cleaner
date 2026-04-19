@@ -8,7 +8,7 @@ import pytz
 
 
 class DawarichService:
-    """Service for interacting with Dawarich API"""
+    """Service for interacting with Dawarich API."""
 
     def __init__(self, base_url: str, api_key: str):
         self.base_url = base_url.rstrip("/")
@@ -17,6 +17,146 @@ class DawarichService:
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
+
+    async def fetch_points_range(
+        self,
+        start_ts: int,
+        end_ts: int,
+        *,
+        anomalies_only: bool = False,
+        per_page: int = 1000,
+    ) -> list[dict[str, Any]]:
+        """Fetch points using Unix timestamp range.
+
+        Dawarich accepts either Unix timestamps or ISO8601 strings for `start_at`/`end_at`.
+
+        Notes:
+        - The API can only return either "anomaly" or "not_anomaly" points per request.
+          To get both, call twice (anomalies_only=True/False) and merge by id.
+        """
+        all_points: list[dict[str, Any]] = []
+        page = 1
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            while True:
+                url = f"{self.base_url}/api/v1/points"
+                params = {
+                    "start_at": int(start_ts),
+                    "end_at": int(end_ts),
+                    "page": page,
+                    "per_page": per_page,
+                    "api_key": self.api_key,
+                }
+                if anomalies_only:
+                    params["anomalies_only"] = "true"
+
+                response = await client.get(url, params=params, headers=self.headers)
+
+                if response.status_code != 200:
+                    raise Exception(
+                        f"Failed to fetch points: {response.status_code} - {response.text}"
+                    )
+
+                data = response.json()
+
+                if isinstance(data, list):
+                    points = data
+                elif isinstance(data, dict):
+                    points = data.get("points", [])
+                else:
+                    points = []
+
+                if not points:
+                    break
+
+                all_points.extend(points)
+
+                if len(points) < per_page:
+                    break
+
+                page += 1
+
+        return all_points
+
+    async def fetch_points_range_all(
+        self,
+        start_ts: int,
+        end_ts: int,
+        *,
+        per_page: int = 1000,
+    ) -> list[dict[str, Any]]:
+        """Fetch points (both anomaly and non-anomaly) for a Unix timestamp range."""
+        non_anomaly = await self.fetch_points_range(
+            start_ts,
+            end_ts,
+            anomalies_only=False,
+            per_page=per_page,
+        )
+        anomaly = await self.fetch_points_range(
+            start_ts,
+            end_ts,
+            anomalies_only=True,
+            per_page=per_page,
+        )
+
+        merged: dict[int, dict[str, Any]] = {}
+        for p in non_anomaly + anomaly:
+            try:
+                merged[int(p.get("id"))] = p
+            except Exception:
+                continue
+
+        return list(merged.values())
+
+    async def fetch_track_points(
+        self,
+        track_id: int,
+        *,
+        page: int | None = None,
+        per_page: int = 1000,
+    ) -> list[dict[str, Any]]:
+        """Fetch points for a given track."""
+        url = f"{self.base_url}/api/v1/tracks/{int(track_id)}/points"
+        params: dict[str, Any] = {"api_key": self.api_key}
+        if page is not None:
+            params["page"] = int(page)
+            params["per_page"] = int(per_page)
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(url, params=params, headers=self.headers)
+
+            if response.status_code != 200:
+                raise Exception(
+                    f"Failed to fetch track points: {response.status_code} - {response.text}"
+                )
+
+            data = response.json()
+            if not isinstance(data, list):
+                return []
+            return data
+
+    async def update_point_location(self, point_id: int, latitude: float, longitude: float) -> dict[str, Any]:
+        """Update a point's location.
+
+        Dawarich enqueues track recalculation on point update when the point has track_id.
+        We use this as a best-effort way to force track recalculation after bulk deletes.
+        """
+        url = f"{self.base_url}/api/v1/points/{int(point_id)}"
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.patch(
+                url,
+                params={"api_key": self.api_key},
+                headers=self.headers,
+                json={"point": {"latitude": latitude, "longitude": longitude}},
+            )
+
+            if response.status_code != 200:
+                raise Exception(
+                    f"Failed to update point: {response.status_code} - {response.text}"
+                )
+
+            return response.json()
 
     def _parse_datetime(self, date_str: str, timezone: str, is_end: bool = False) -> datetime:
         """Parse datetime string in various formats.
